@@ -17,7 +17,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (scanBtn) scanBtn.onclick = () => startScanner('search-input');
 
     const masterScanBtn = document.getElementById('master-scan-btn');
-    if (masterScanBtn) masterScanBtn.onclick = () => startScanner('prod-barcode');
+    if (masterScanBtn) {
+        console.log('Setup: Master scan button found');
+        masterScanBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Click: Master scan button clicked');
+            startScanner('prod-barcode');
+        });
+    } else {
+        console.error('Setup: Master scan button NOT found');
+    }
 
     // Close scanner button
     const closeBtn = document.getElementById('close-scanner-btn');
