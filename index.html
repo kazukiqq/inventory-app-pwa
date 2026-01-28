@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在庫管理アプリ</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <!-- html5-qrcode library for barcode scanning -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <h1>在庫管理</h1>
+        </header>
+
+        <main id="main-content">
+            <!-- Search View -->
+            <div id="view-search" class="view active">
+                <div class="card search-card">
+                    <h2>商品検索</h2>
+                    <div class="search-bar">
+                        <input type="text" id="search-input" placeholder="名前 または バーコード">
+                        <button id="scan-btn" class="btn-icon" aria-label="スキャン">📷</button>
+                    </div>
+                    <div id="reader" style="width: 100%; display: none;"></div>
+                </div>
+                <div id="search-results" class="product-list">
+                    <!-- Results injected here -->
+                </div>
+            </div>
+
+            <!-- Inventory/Stocktaking View -->
+            <div id="view-inventory" class="view">
+                <h2>棚卸し</h2>
+                <div class="search-bar">
+                    <input type="text" id="inventory-search-input" placeholder="絞り込み...">
+                </div>
+                <div id="inventory-list" class="product-list">
+                    <!-- Inventory items injected here -->
+                </div>
+            </div>
+
+            <!-- Master Data View -->
+            <div id="view-master" class="view">
+                <div class="card">
+                    <h2>商品登録</h2>
+                    <form id="product-form">
+                        <div class="form-group">
+                            <label for="prod-barcode">バーコード</label>
+                            <div class="input-with-btn">
+                                <input type="text" id="prod-barcode" placeholder="スキャンまたは入力">
+                                <button type="button" id="master-scan-btn" class="btn-secondary">📷</button>
+                            </div>
+                            <div style="margin-top: 5px;">
+                                <button type="button" id="kokuyo-search-btn" class="btn-secondary"
+                                    style="font-size: 0.8rem; width: 100%; display: none;">コクヨWebで検索</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-name">商品名</label>
+                            <input type="text" id="prod-name" required placeholder="例: りんご">
+                        </div>
+                        <div class="form-group row">
+                            <div>
+                                <label for="prod-price">単価 (円)</label>
+                                <input type="number" id="prod-price" required placeholder="0">
+                            </div>
+                            <div>
+                                <label for="prod-stock">初期在庫</label>
+                                <input type="number" id="prod-stock" required placeholder="0">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary">保存</button>
+                        <input type="hidden" id="prod-id"> <!-- For editing -->
+                        <button type="button" id="cancel-edit" style="display:none;"
+                            class="btn-secondary">キャンセル</button>
+                    </form>
+                </div>
+                <div class="card mt-2">
+                    <h3>登録済み商品</h3>
+                    <div id="master-list" class="product-list compact">
+                        <!-- Master list injected here -->
+                    </div>
+                </div>
+            </div>
+            <!-- Settings View -->
+            <div id="view-settings" class="view">
+                <div class="card">
+                    <h2>設定</h2>
+                    <form id="settings-form">
+                        <div class="form-group">
+                            <label for="yahoo-client-id">Yahoo! Client ID (アプリケーションID)</label>
+                            <input type="text" id="yahoo-client-id" placeholder="Client IDを入力">
+                            <p class="product-meta" style="font-size: 0.8rem; margin-top: 5px;">
+                                JANコードから商品情報を自動取得するために必要です。
+                                <a href="https://e.developer.yahoo.co.jp/register"
+                                    target="_blank">Yahoo!デベロッパーネットワーク</a>で取得できます。
+                            </p>
+                        </div>
+                        <button type="submit" class="btn-primary">保存</button>
+                    </form>
+
+                    <div class="mt-2" style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1.5rem;">
+                        <h3>Googleスプレッドシート連携</h3>
+                        <p class="product-meta" style="font-size: 0.8rem; margin-bottom: 0.5rem;">
+                            WebアプリURLを設定するとクラウド同期が可能です。
+                        </p>
+                        <div class="form-group">
+                            <label for="gas-app-url">GAS Webアプリ URL</label>
+                            <input type="text" id="gas-app-url" placeholder="https://script.google.com/macros/s/..." style="font-size: 0.8rem;">
+                        </div>
+                        <div class="row" style="gap: 10px;">
+                            <button id="gas-download-btn" class="btn-secondary" style="flex: 1; background-color: #0284c7; color: white;">Cloudから読込 (dl)</button>
+                            <button id="gas-upload-btn" class="btn-secondary" style="flex: 1; background-color: #059669; color: white;">Cloudへ保存 (up)</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-2"
+                        style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1.5rem;">
+                        <h3>データ入出力 (CSV)</h3>
+                        <p class="product-meta" style="font-size: 0.8rem; margin-bottom: 0.5rem;">
+                            Excelで編集可能な形式でバックアップ・復元ができます。
+                        </p>
+                        <div class="row">
+                            <button id="download-csv-btn" class="btn-secondary"
+                                style="background-color: #0f766e; color: white;">⬇ CSVダウンロード</button>
+                            <button id="trigger-import-btn" class="btn-secondary"
+                                style="background-color: #ea580c; color: white;">⬆ CSV読み込み</button>
+                            <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-target="view-search">
+                <span class="icon">🔍</span>
+                <span class="label">検索</span>
+            </button>
+            <button class="nav-btn" data-target="view-inventory">
+                <span class="icon">📝</span>
+                <span class="label">棚卸</span>
+            </button>
+            <button class="nav-btn" data-target="view-master">
+                <span class="icon">⚙️</span>
+                <span class="label">登録</span>
+            </button>
+            <button class="nav-btn" data-target="view-settings">
+                <span class="icon">🔧</span>
+                <span class="label">設定</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Modal for notifications/confirmations can be added here -->
+
+    <script src="app.js"></script>
+</body>
+
+</html>
