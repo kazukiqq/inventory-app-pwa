@@ -24,9 +24,7 @@
                     <h2>商品検索</h2>
                     <div class="search-bar">
                         <input type="text" id="search-input" placeholder="名前 または バーコード">
-                        <button id="scan-btn" class="btn-icon" aria-label="スキャン">📷</button>
                     </div>
-                    <div id="reader" style="width: 100%; display: none;"></div>
                 </div>
                 <div id="search-results" class="product-list">
                     <!-- Results injected here -->
@@ -104,18 +102,22 @@
                         <button type="submit" class="btn-primary">保存</button>
                     </form>
 
-                    <div class="mt-2" style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1.5rem;">
+                    <div class="mt-2"
+                        style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1.5rem;">
                         <h3>Googleスプレッドシート連携</h3>
                         <p class="product-meta" style="font-size: 0.8rem; margin-bottom: 0.5rem;">
                             WebアプリURLを設定するとクラウド同期が可能です。
                         </p>
                         <div class="form-group">
                             <label for="gas-app-url">GAS Webアプリ URL</label>
-                            <input type="text" id="gas-app-url" placeholder="https://script.google.com/macros/s/..." style="font-size: 0.8rem;">
+                            <input type="text" id="gas-app-url" placeholder="https://script.google.com/macros/s/..."
+                                style="font-size: 0.8rem;">
                         </div>
                         <div class="row" style="gap: 10px;">
-                            <button id="gas-download-btn" class="btn-secondary" style="flex: 1; background-color: #0284c7; color: white;">Cloudから読込 (dl)</button>
-                            <button id="gas-upload-btn" class="btn-secondary" style="flex: 1; background-color: #059669; color: white;">Cloudへ保存 (up)</button>
+                            <button id="gas-download-btn" class="btn-secondary"
+                                style="flex: 1; background-color: #0284c7; color: white;">Cloudから読込 (dl)</button>
+                            <button id="gas-upload-btn" class="btn-secondary"
+                                style="flex: 1; background-color: #059669; color: white;">Cloudへ保存 (up)</button>
                         </div>
                     </div>
 
@@ -135,6 +137,7 @@
                     </div>
                 </div>
             </div>
+            <div id="reader" style="width: 100%; display: none; margin-bottom: 1rem;"></div>
         </main>
 
         <nav class="bottom-nav">

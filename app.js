@@ -13,8 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderMasterList();
 
     // Scan buttons
-    document.getElementById('scan-btn').addEventListener('click', () => startScanner('search-input'));
-    document.getElementById('master-scan-btn').addEventListener('click', () => startScanner('prod-barcode'));
+    const scanBtn = document.getElementById('scan-btn');
+    if (scanBtn) scanBtn.onclick = () => startScanner('search-input');
+
+    const masterScanBtn = document.getElementById('master-scan-btn');
+    if (masterScanBtn) masterScanBtn.onclick = () => startScanner('prod-barcode');
 
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
