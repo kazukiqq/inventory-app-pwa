@@ -483,10 +483,22 @@ function startScanner(targetInputId) {
     const modal = document.getElementById('scanner-modal');
     modal.style.display = 'flex'; // Show modal
 
+    // Stop existing scanner first if any
     if (html5QrcodeScanner) {
-        return;
+        html5QrcodeScanner.stop().then(() => {
+            html5QrcodeScanner.clear();
+            html5QrcodeScanner = null;
+            initScanner(targetInputId);
+        }).catch(() => {
+            html5QrcodeScanner = null;
+            initScanner(targetInputId);
+        });
+    } else {
+        initScanner(targetInputId);
     }
+}
 
+function initScanner(targetInputId) {
     const html5QrCode = new Html5Qrcode("reader");
     html5QrcodeScanner = html5QrCode;
 
