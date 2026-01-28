@@ -520,7 +520,7 @@ function initScanner(targetInputId) {
     }).catch(err => {
         console.error("Error starting scanner", err);
         alert('カメラの起動に失敗しました。権限を確認してください。');
-        modal.style.display = 'none'; // Hide on error
+        document.getElementById('scanner-modal').style.display = 'none'; // Hide on error
         html5QrcodeScanner = null;
     });
 }
