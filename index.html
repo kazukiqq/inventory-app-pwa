@@ -140,37 +140,37 @@
                     </div>
                 </div>
             </div>
-            <!-- Scanner Modal -->
             <div style="text-align: center; padding: 0.5rem; color: var(--secondary-color); font-size: 0.7rem;">
-                v1.1.0
-            </div>
-            <div id="scanner-modal" class="scanner-modal" style="display: none;">
-                <div class="scanner-content">
-                    <div id="reader"></div>
-                    <button id="close-scanner-btn" class="btn-secondary"
-                        style="margin-top: 10px; width: 100%;">閉じる</button>
-                </div>
+                v1.1.1
             </div>
         </main>
 
         <nav class="bottom-nav">
             <button class="nav-btn active" data-target="view-search">
-                <span class="icon">🔍</span>
-                <span class="label">検索</span>
+                <i class="icon">🔍</i>
+                <span>検索</span>
             </button>
             <button class="nav-btn" data-target="view-inventory">
-                <span class="icon">📝</span>
-                <span class="label">棚卸</span>
+                <i class="icon">📦</i>
+                <span>棚卸</span>
             </button>
             <button class="nav-btn" data-target="view-master">
-                <span class="icon">⚙️</span>
-                <span class="label">登録</span>
+                <i class="icon">📝</i>
+                <span>登録</span>
             </button>
             <button class="nav-btn" data-target="view-settings">
-                <span class="icon">🔧</span>
-                <span class="label">設定</span>
+                <i class="icon">⚙️</i>
+                <span>設定</span>
             </button>
         </nav>
+    </div>
+
+    <!-- Scanner Modal (Moved to body level) -->
+    <div id="scanner-modal" class="scanner-modal" style="display: none;">
+        <div class="scanner-content">
+            <div id="reader"></div>
+            <button id="close-scanner-btn" class="btn-secondary" style="margin-top: 10px; width: 100%;">閉じる</button>
+        </div>
     </div>
 
     <!-- Modal for notifications/confirmations can be added here -->
