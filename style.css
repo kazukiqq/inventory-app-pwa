@@ -305,6 +305,10 @@ button {
 
 #reader {
     width: 100%;
+    min-height: 300px;
+    /* Force height */
+    background-color: #000;
+    /* Visual feedback */
     border-radius: 0.5rem;
     overflow: hidden;
 }
