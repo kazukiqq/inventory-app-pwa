@@ -53,9 +53,11 @@
                                 <input type="text" id="prod-barcode" placeholder="スキャンまたは入力">
                                 <button type="button" id="master-scan-btn" class="btn-secondary">📷</button>
                             </div>
-                            <div style="margin-top: 5px;">
+                            <div class="row" style="margin-top: 5px; gap: 5px;">
                                 <button type="button" id="kokuyo-search-btn" class="btn-secondary"
-                                    style="font-size: 0.8rem; width: 100%; display: none;">コクヨWebで検索</button>
+                                    style="font-size: 0.8rem; flex: 1; display: none;">コクヨWeb</button>
+                                <button type="button" id="amazon-search-btn" class="btn-secondary"
+                                    style="font-size: 0.8rem; flex: 1; display: none;">Amazon</button>
                             </div>
                         </div>
                         <div class="form-group">
@@ -137,7 +139,14 @@
                     </div>
                 </div>
             </div>
-            <div id="reader" style="width: 100%; display: none; margin-bottom: 1rem;"></div>
+            <!-- Scanner Modal -->
+            <div id="scanner-modal" class="scanner-modal" style="display: none;">
+                <div class="scanner-content">
+                    <div id="reader"></div>
+                    <button id="close-scanner-btn" class="btn-secondary"
+                        style="margin-top: 10px; width: 100%;">閉じる</button>
+                </div>
+            </div>
         </main>
 
         <nav class="bottom-nav">

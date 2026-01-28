@@ -110,11 +110,17 @@ function setupForms() {
     barcodeInput.addEventListener('change', async (e) => {
         const code = e.target.value;
         const kokuyoBtn = document.getElementById('kokuyo-search-btn');
+        const amazonBtn = document.getElementById('amazon-search-btn');
 
         if (code) {
             kokuyoBtn.style.display = 'block';
             kokuyoBtn.onclick = () => {
                 window.open(`https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${code}`, '_blank');
+            };
+
+            amazonBtn.style.display = 'block';
+            amazonBtn.onclick = () => {
+                window.open(`https://www.amazon.co.jp/s?k=${code}`, '_blank');
             };
 
             // Auto-fetch if new product
@@ -301,6 +307,7 @@ function saveProductFromForm() {
     document.getElementById('product-form').reset();
     document.getElementById('prod-id').value = '';
     document.getElementById('kokuyo-search-btn').style.display = 'none';
+    document.getElementById('amazon-search-btn').style.display = 'none';
     alert('保存しました');
     renderMasterList();
 }
@@ -324,13 +331,19 @@ function editProduct(id) {
     document.getElementById('prod-barcode').value = p.barcode || '';
 
     const kokuyoBtn = document.getElementById('kokuyo-search-btn');
+    const amazonBtn = document.getElementById('amazon-search-btn');
     if (p.barcode) {
         kokuyoBtn.style.display = 'block';
         kokuyoBtn.onclick = () => {
             window.open(`https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${p.barcode}`, '_blank');
         };
+        amazonBtn.style.display = 'block';
+        amazonBtn.onclick = () => {
+            window.open(`https://www.amazon.co.jp/s?k=${p.barcode}`, '_blank');
+        };
     } else {
         kokuyoBtn.style.display = 'none';
+        amazonBtn.style.display = 'none';
     }
 
     document.getElementById('main-content').scrollTop = 0;
@@ -375,9 +388,14 @@ function performSearch(query) {
             container.innerHTML = `
                 <div style="text-align:center; padding: 1rem;">
                     <p style="color: var(--secondary-color); margin-bottom: 1rem;">アプリ内に見つかりませんでした</p>
-                    <a href="https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block;">
-                        コクヨWebで検索 ↗
-                    </a>
+                    <div class="row" style="gap:10px; justify-content:center;">
+                        <a href="https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.8rem;">
+                            コクヨ ↗
+                        </a>
+                        <a href="https://www.amazon.co.jp/s?k=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.8rem;">
+                            Amazon ↗
+                        </a>
+                    </div>
                 </div>
              `;
         } else {
@@ -458,8 +476,8 @@ function updateStock(id, delta) {
 
 // --- Barcode Scanner ---
 function startScanner(targetInputId) {
-    const readerElem = document.getElementById('reader');
-    readerElem.style.display = 'block';
+    const modal = document.getElementById('scanner-modal');
+    modal.style.display = 'flex'; // Show modal
 
     if (html5QrcodeScanner) {
         return;
@@ -486,7 +504,7 @@ function startScanner(targetInputId) {
     }).catch(err => {
         console.error("Error starting scanner", err);
         alert('カメラの起動に失敗しました。権限を確認してください。');
-        readerElem.style.display = 'none';
+        modal.style.display = 'none'; // Hide on error
         html5QrcodeScanner = null;
     });
 }
@@ -494,14 +512,29 @@ function startScanner(targetInputId) {
 function stopScanner() {
     if (html5QrcodeScanner) {
         html5QrcodeScanner.stop().then(() => {
-            document.getElementById('reader').style.display = 'none';
             html5QrcodeScanner.clear();
             html5QrcodeScanner = null;
+            document.getElementById('scanner-modal').style.display = 'none'; // Hide modal
         }).catch(err => {
             console.error("Failed to stop scanner", err);
+            // Force hide even if error
+            document.getElementById('scanner-modal').style.display = 'none';
+            html5QrcodeScanner = null;
         });
+    } else {
+        document.getElementById('scanner-modal').style.display = 'none';
     }
 }
+
+// Close button event
+document.addEventListener('DOMContentLoaded', () => {
+    const closeBtn = document.getElementById('close-scanner-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            stopScanner();
+        });
+    }
+});
 
 // --- GAS Integration ---
 async function downloadFromGas() {

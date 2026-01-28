@@ -279,9 +279,32 @@ button {
     font-size: 0.75rem;
 }
 
-/* Barcode Reader */
+/* Barcode Reader Modal */
+.scanner-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.scanner-content {
+    background: var(--surface-color);
+    padding: 1rem;
+    border-radius: var(--radius);
+    width: 90%;
+    max-width: 400px;
+    box-shadow: var(--shadow);
+}
+
 #reader {
+    width: 100%;
     border-radius: 0.5rem;
     overflow: hidden;
-    margin-bottom: 1rem;
 }
