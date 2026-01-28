@@ -19,6 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const masterScanBtn = document.getElementById('master-scan-btn');
     if (masterScanBtn) masterScanBtn.onclick = () => startScanner('prod-barcode');
 
+    // Close scanner button
+    const closeBtn = document.getElementById('close-scanner-btn');
+    if (closeBtn) closeBtn.onclick = () => stopScanner();
+
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -525,16 +529,6 @@ function stopScanner() {
         document.getElementById('scanner-modal').style.display = 'none';
     }
 }
-
-// Close button event
-document.addEventListener('DOMContentLoaded', () => {
-    const closeBtn = document.getElementById('close-scanner-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            stopScanner();
-        });
-    }
-});
 
 // --- GAS Integration ---
 async function downloadFromGas() {
