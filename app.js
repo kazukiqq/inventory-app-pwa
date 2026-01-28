@@ -3,6 +3,7 @@
 // Data State
 let products = [];
 let html5QrcodeScanner = null;
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
@@ -160,7 +161,7 @@ function setupForms() {
 
     // GAS Settings & Sync
     const gasUrlInput = document.getElementById('gas-app-url');
-    gasUrlInput.value = localStorage.getItem('inventory_app_gas_url') || '';
+    gasUrlInput.value = localStorage.getItem('inventory_app_gas_url') || DEFAULT_GAS_URL;
     gasUrlInput.addEventListener('change', (e) => {
         localStorage.setItem('inventory_app_gas_url', e.target.value.trim());
     });
@@ -553,7 +554,7 @@ function stopScanner() {
 
 // --- GAS Integration ---
 async function downloadFromGas() {
-    const url = localStorage.getItem('inventory_app_gas_url');
+    const url = localStorage.getItem('inventory_app_gas_url') || DEFAULT_GAS_URL;
     if (!url) return alert('GAS Webアプリ URLを設定してください');
 
     if (!confirm('クラウドからデータを読み込みますか？\n端末内のデータは上書きされます。')) return;
@@ -589,7 +590,7 @@ async function downloadFromGas() {
 }
 
 async function uploadToGas() {
-    const url = localStorage.getItem('inventory_app_gas_url');
+    const url = localStorage.getItem('inventory_app_gas_url') || DEFAULT_GAS_URL;
     if (!url) return alert('GAS Webアプリ URLを設定してください');
 
     if (!confirm('クラウドへデータを保存（上書き）しますか？')) return;
