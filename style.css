@@ -315,3 +315,49 @@ button {
     border-radius: 0.5rem;
     overflow: hidden;
 }
+
+/* Category Styles */
+.category-badge {
+    display: inline-block;
+    background-color: #3b82f6;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+}
+
+.category-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.category-item {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f0f9ff;
+    border: 1px solid #bae6fd;
+    color: #0369a1;
+    font-size: 0.85rem;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    gap: 0.3rem;
+}
+
+.category-item .delete-btn {
+    background: none;
+    border: none;
+    color: #dc2626;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 4px;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.category-item .delete-btn:hover {
+    color: #b91c1c;
+}

@@ -17,7 +17,7 @@
             style="display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border-bottom: 2px solid #2563eb; background: #3b82f6;">
             <h1 style="margin: 0; color: white; font-size: 1.2rem;">在庫管理</h1>
             <span
-                style="font-size: 0.8rem; font-weight: bold; color: #3b82f6; background: white; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">v1.1.5
+                style="font-size: 0.8rem; font-weight: bold; color: #3b82f6; background: white; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">v1.2.0
                 最新</span>
         </header>
 
@@ -39,8 +39,12 @@
             <!-- Inventory/Stocktaking View -->
             <div id="view-inventory" class="view">
                 <h2>棚卸し</h2>
-                <div class="search-bar">
-                    <input type="text" id="inventory-search-input" placeholder="絞り込み...">
+                <div class="search-bar" style="gap: 0.5rem;">
+                    <input type="text" id="inventory-search-input" placeholder="絞り込み..." style="flex: 2;">
+                    <select id="inventory-category-filter" style="flex: 1;"
+                        onchange="renderInventory(document.getElementById('inventory-search-input').value)">
+                        <option value="">すべて</option>
+                    </select>
                 </div>
                 <div id="inventory-list" class="product-list">
                     <!-- Inventory items injected here -->
@@ -80,6 +84,12 @@
                                 <label for="prod-stock">初期在庫</label>
                                 <input type="number" id="prod-stock" placeholder="0">
                             </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="prod-category">カテゴリ</label>
+                            <select id="prod-category">
+                                <option value="">-- 選択 --</option>
+                            </select>
                         </div>
                         <button type="submit" class="btn-primary">保存</button>
                         <input type="hidden" id="prod-id"> <!-- For editing -->
@@ -127,6 +137,22 @@
                                 style="flex: 1; background-color: #0284c7; color: white;">Cloudから読込 (dl)</button>
                             <button id="gas-upload-btn" class="btn-secondary"
                                 style="flex: 1; background-color: #059669; color: white;">Cloudへ保存 (up)</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-2"
+                        style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1.5rem;">
+                        <h3>カテゴリ管理</h3>
+                        <p class="product-meta" style="font-size: 0.8rem; margin-bottom: 0.5rem;">
+                            商品を分類するカテゴリを追加・削除できます。
+                        </p>
+                        <div class="row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <input type="text" id="new-category-input" placeholder="新しいカテゴリ名" style="flex: 1;">
+                            <button type="button" class="btn-primary" onclick="addCategory()"
+                                style="flex-shrink: 0;">追加</button>
+                        </div>
+                        <div id="category-list" class="category-list">
+                            <!-- Categories injected here -->
                         </div>
                     </div>
 

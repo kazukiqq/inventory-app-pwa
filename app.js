@@ -2,19 +2,23 @@
 
 // Data State
 let products = [];
+let categories = [];
 let html5QrcodeScanner = null;
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.1.5');
+    console.log('App version: v1.2.0');
 
     loadData();
+    loadCategories();
     setupNavigation();
     setupForms();
     renderInventory();
     renderMasterList();
+    renderCategoryList();
+    renderCategoryDropdowns();
 
     // Scan buttons
     const scanBtn = document.getElementById('scan-btn');
@@ -104,6 +108,89 @@ function loadData() {
 
 function saveData() {
     localStorage.setItem('inventory_app_products', JSON.stringify(products));
+}
+
+// --- Category Management ---
+function loadCategories() {
+    const data = localStorage.getItem('inventory_app_categories');
+    if (data) {
+        categories = JSON.parse(data);
+    } else {
+        categories = ['文具', '食品', '事務用品'];
+        saveCategories();
+    }
+}
+
+function saveCategories() {
+    localStorage.setItem('inventory_app_categories', JSON.stringify(categories));
+}
+
+function addCategory() {
+    const input = document.getElementById('new-category-input');
+    const name = input.value.trim();
+    if (!name) return alert('カテゴリ名を入力してください');
+    if (categories.includes(name)) return alert('既に存在するカテゴリです');
+
+    categories.push(name);
+    saveCategories();
+    renderCategoryList();
+    renderCategoryDropdowns();
+    input.value = '';
+    alert('カテゴリを追加しました');
+}
+
+function deleteCategory(name) {
+    if (!confirm(`「${name}」を削除しますか？`)) return;
+    categories = categories.filter(c => c !== name);
+    saveCategories();
+    renderCategoryList();
+    renderCategoryDropdowns();
+}
+
+function renderCategoryList() {
+    const container = document.getElementById('category-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+    categories.forEach(cat => {
+        const div = document.createElement('div');
+        div.className = 'category-item';
+        div.innerHTML = `
+            <span>${cat}</span>
+            <button class="btn-danger-small" onclick="deleteCategory('${cat}')">✕</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function renderCategoryDropdowns() {
+    // Product form dropdown
+    const prodCategory = document.getElementById('prod-category');
+    if (prodCategory) {
+        const currentVal = prodCategory.value;
+        prodCategory.innerHTML = '<option value="">-- 選択 --</option>';
+        categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            prodCategory.appendChild(opt);
+        });
+        prodCategory.value = currentVal;
+    }
+
+    // Inventory filter dropdown
+    const inventoryFilter = document.getElementById('inventory-category-filter');
+    if (inventoryFilter) {
+        const currentVal = inventoryFilter.value;
+        inventoryFilter.innerHTML = '<option value="">すべて</option>';
+        categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            inventoryFilter.appendChild(opt);
+        });
+        inventoryFilter.value = currentVal;
+    }
 }
 
 // --- Navigation ---
@@ -278,7 +365,7 @@ function exportCSV() {
     }
 
     // Header
-    const header = ['ID', '商品名', '単価', '在庫数', 'バーコード'].join(',');
+    const header = ['ID', '商品名', '単価', '在庫数', 'バーコード', 'カテゴリ'].join(',');
 
     // Rows
     const rows = products.map(p => {
@@ -296,7 +383,8 @@ function exportCSV() {
             escape(p.name),
             p.price,
             p.stock,
-            escape(p.barcode)
+            escape(p.barcode),
+            escape(p.category)
         ].join(',');
     });
 
@@ -335,18 +423,19 @@ function importCSV(file) {
 
             const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"'));
 
-            // Expected: ID, Name, Price, Stock, Barcode
+            // Expected: ID, Name, Price, Stock, Barcode, Category
             let id = cols[0] ? parseInt(cols[0]) : Date.now() + Math.random();
             const name = cols[1];
             const price = parseInt(cols[2]) || 0;
             const stock = parseInt(cols[3]) || 0;
             const barcode = normalizeBarcode(cols[4] || '');
+            const category = cols[5] ? cols[5].trim() : '';
 
             if (!name) return;
 
             const existingIndex = products.findIndex(p => p.id === id);
 
-            const newProd = { id, name, price, stock, barcode };
+            const newProd = { id, name, price, stock, barcode, category };
 
             if (existingIndex !== -1) {
                 products[existingIndex] = newProd;
@@ -398,13 +487,15 @@ function saveProductFromForm() {
     const priceInput = document.getElementById('prod-price');
     const stockInput = document.getElementById('prod-stock');
     const barcodeInput = document.getElementById('prod-barcode');
+    const categoryInput = document.getElementById('prod-category');
 
     const product = {
         id: idInput.value ? parseInt(idInput.value) : Date.now(),
         name: nameInput.value,
         price: parseInt(priceInput.value) || 0,
         stock: parseInt(stockInput.value) || 0,
-        barcode: normalizeBarcode(barcodeInput.value || '')
+        barcode: normalizeBarcode(barcodeInput.value || ''),
+        category: categoryInput ? categoryInput.value : ''
     };
 
     if (idInput.value) {
@@ -445,6 +536,9 @@ function editProduct(id) {
     document.getElementById('prod-stock').value = p.stock;
     document.getElementById('prod-barcode').value = p.barcode || '';
 
+    const categoryInput = document.getElementById('prod-category');
+    if (categoryInput) categoryInput.value = p.category || '';
+
     const kokuyoBtn = document.getElementById('kokuyo-search-btn');
     const crownBtn = document.getElementById('crown-search-btn');
     const amazonBtn = document.getElementById('amazon-search-btn');
@@ -477,9 +571,10 @@ function renderMasterList() {
     products.forEach(p => {
         const div = document.createElement('div');
         div.className = 'product-item';
+        const categoryLabel = p.category ? `<span class="category-badge">${p.category}</span>` : '';
         div.innerHTML = `
             <div class="product-info">
-                <h3>${p.name}</h3>
+                <h3>${p.name} ${categoryLabel}</h3>
                 <div class="product-meta">¥${p.price} | 在庫: ${p.stock} | ${p.barcode || '-'}</div>
             </div>
             <div class="actions">
@@ -531,9 +626,10 @@ function performSearch(query) {
     hits.forEach(p => {
         const div = document.createElement('div');
         div.className = 'product-item';
+        const categoryLabel = p.category ? `<span class="category-badge">${p.category}</span>` : '';
         div.innerHTML = `
             <div class="product-info" style="flex: 1;">
-                <h3>${p.name}</h3>
+                <h3>${p.name} ${categoryLabel}</h3>
                 <div class="product-meta">¥${p.price} | ${p.barcode || '-'}</div>
             </div>
             <div class="stock-control" style="display: flex; align-items: center; gap: 0.5rem;">
@@ -552,19 +648,25 @@ function renderInventory(filterText = '') {
     const container = document.getElementById('inventory-list');
     container.innerHTML = '';
 
+    const categoryFilter = document.getElementById('inventory-category-filter');
+    const selectedCategory = categoryFilter ? categoryFilter.value : '';
+
     const normalizedFilter = normalizeBarcode(filterText).toLowerCase();
-    const filtered = products.filter(p =>
-        !filterText ||
-        p.name.toLowerCase().includes(normalizedFilter) ||
-        (p.barcode && String(p.barcode).includes(normalizedFilter))
-    );
+    const filtered = products.filter(p => {
+        const matchText = !filterText ||
+            p.name.toLowerCase().includes(normalizedFilter) ||
+            (p.barcode && String(p.barcode).includes(normalizedFilter));
+        const matchCategory = !selectedCategory || p.category === selectedCategory;
+        return matchText && matchCategory;
+    });
 
     filtered.forEach(p => {
         const div = document.createElement('div');
         div.className = 'product-item';
+        const categoryLabel = p.category ? `<span class="category-badge">${p.category}</span>` : '';
         div.innerHTML = `
             <div class="product-info">
-                <h3>${p.name}</h3>
+                <h3>${p.name} ${categoryLabel}</h3>
                 <div class="product-meta">現在庫: ${p.stock}</div>
             </div>
             <div class="stock-control">

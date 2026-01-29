@@ -17,7 +17,8 @@ function doGet(e) {
             name: String(row[1]),
             price: Number(row[2]),
             stock: Number(row[3]),
-            barcode: String(row[4] || "")
+            barcode: String(row[4] || ""),
+            category: String(row[5] || "")
         });
     }
 
@@ -43,7 +44,7 @@ function doPost(e) {
         sheet.clearContents();
 
         // Set Header
-        const headers = ["ID", "商品名", "単価", "在庫数", "バーコード"];
+        const headers = ["ID", "商品名", "単価", "在庫数", "バーコード", "カテゴリ"];
 
         // Extract products array from payload (support both formats)
         let productList;
@@ -70,7 +71,8 @@ function doPost(e) {
                 p.name,
                 p.price,
                 p.stock,
-                p.barcode || ""
+                p.barcode || "",
+                p.category || ""
             ]);
         });
 
