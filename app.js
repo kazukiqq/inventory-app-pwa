@@ -37,7 +37,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('Service Worker registered', reg))
+                .then(reg => {
+                    console.log('Service Worker registered', reg);
+
+                    // Listen for updates
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    // New content is available; ask user to reload
+                                    console.log('New content available, reloading...');
+                                    if (confirm('新しいバージョンが利用可能です。更新しますか？')) {
+                                        window.location.reload();
+                                    }
+                                }
+                            }
+                        };
+                    };
+                })
                 .catch(err => console.error('Service Worker registration failed', err));
         });
     }
