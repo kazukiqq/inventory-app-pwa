@@ -759,3 +759,38 @@ async function uploadToGas() {
         }, 1000);
     }
 }
+
+// 強制リフレッシュボタンの追加
+document.addEventListener('DOMContentLoaded', () => {
+    const forceUpdateBtn = document.getElementById('force-update-btn');
+    if (forceUpdateBtn) {
+        forceUpdateBtn.addEventListener('click', async () => {
+            if (confirm('すべての情報をリフレッシュして最新版を取得します。よろしいですか？（データ自体はlocalStorageに残ります）')) {
+                try {
+                    // 1. Unregister all service workers
+                    if ('serviceWorker' in navigator) {
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        for (let registration of registrations) {
+                            await registration.unregister();
+                        }
+                    }
+
+                    // 2. Clear all caches
+                    if ('caches' in window) {
+                        const cacheNames = await caches.keys();
+                        for (let cacheName of cacheNames) {
+                            await caches.delete(cacheName);
+                        }
+                    }
+
+                    // 3. Hard reload
+                    alert('クリアしました。アプリを再読み込みします。');
+                    window.location.reload(true);
+                } catch (err) {
+                    console.error('Force update failed:', err);
+                    alert('更新に失敗しました: ' + err);
+                }
+            }
+        });
+    }
+});
