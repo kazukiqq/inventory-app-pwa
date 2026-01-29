@@ -28,13 +28,14 @@ SPAとして実装されており、タブ切り替えで以下のViewを表示�
 1.  **検索 (`#view-search`)**: 商品検索とバーコードスキャン
 2.  **棚卸 (`#view-inventory`)**: 在庫数の増減操作
 3.  **登録 (`#view-master`)**: 新規商品登録、マスタ一覧・編集
-4.  **設定 (`#view-settings`)**: APIキー設定、CSV入出力、GAS連携
+4.  **設定 (`#view-settings`)**: APIキー設定、CSV入出力、GAS連携、**強制更新ボタン**
 
 **操作**:
 - 下部ナビゲーションボタンでの切り替え。
 - **スワイプ操作**: 画面上のどこでも（コンテンツのない場所でも）左右スワイプで隣接するタブへ移動可能。
-    - 検知範囲：`document` 全体。
-    - 競合回避：`input`, `textarea`, `select` 要素、および特定のボタン（`.stock-btn` 等）の上ではスワイプナビゲーションを無効化し、本来の入力を優先する。
+    - 検知範囲：`document` 全体（`screenX` を使用）。
+    - 感度：30px（短いスワイプでも反応）。
+    - 競合回避：`INPUT`, `TEXTAREA`, `SELECT` 要素、および特定のボタン（`.stock-btn`, `.nav-btn`）の上ではスワイプナビゲーションを無効化。
     - 右から左へスワイプ：次のタブへ。
     - 左から右へスワイプ：前のタブへ。
 
@@ -76,19 +77,35 @@ SPAとして実装されており、タブ切り替えで以下のViewを表示�
 - **URL**: [https://inventory-app-pwa.vercel.app](https://inventory-app-pwa.vercel.app)
 - **GitHub**: [kazukiqq/inventory-app-pwa](https://github.com/kazukiqq/inventory-app-pwa)
 - **現在のバージョン**: v1.1.3
-- **更新管理**: 
-    - ブラウザキャッシュによる更新の遅延・固執を防ぐため、`navigator.serviceWorker.register` 時には `{ updateViaCache: 'none' }` を使用している。
-    - 登録URLにはクエリパラメータを付与**しない**（無限ループ防止のため）。
-    - ユーザーの承認 (`confirm`) 後、`SKIP_WAITING` を Service Worker に送り、`controllerchange` イベントでページをリロードする方式を採用している。
+- **ヘッダーデザイン**: 濃い青色 (`#3b82f6`) の背景に白文字で「在庫管理」、白いバッジで「v1.1.3 最新」と表示。
+
+### PWA更新管理
+- **キャッシュ戦略**:
+    - `index.html`（メインページ）: **Network First**（常にサーバーを確認し、オフライン時のみキャッシュを使用）
+    - その他の資産（CSS, JS, 画像）: **Cache First**（高速化のためキャッシュ優先）
+- **Service Worker登録**:
+    - `{ updateViaCache: 'none' }` を使用してネットワークを毎回確認。
+    - 登録URLにはビルドIDを付与（例：`sw.js?build=1.1.3-rev3`）。
+- **更新フロー**:
+    1. `onupdatefound` で新しいSWを検知。
+    2. ユーザーに `confirm` で確認。
+    3. `SKIP_WAITING` メッセージをSWに送信。
+    4. `controllerchange` イベントでページをリロード。
+- **強制更新ボタン** (`#force-update-btn`):
+    - 設定画面の最下部に配置。
+    - 押すと全てのService Workerを登録解除し、全キャッシュを削除してからリロード。
+    - キャッシュ問題が解消されない場合の最終手段。
 
 ## 開発・保守ルール
 
 ### UI/UX
 - **Vanilla CSS**: CSS変数 (`--primary-color` 等) を活用
 - **レスポンシブ**: スマホでの利用（カメラ・タッチ操作・スワイプ）を最優先
+- **touch-action**: `body` に `touch-action: none` を設定し、JS側でタッチイベントを完全制御
 
 ### コード規約
 - **Vanilla JS**: ES6+ (Arrow functions, async/await, Template literals)
 - **Service Worker**: 
     - 静的資産の追加時は `sw.js` の `ASSETS` 配列を更新。
-    - 大規模な変更時は `sw.js` の `CACHE_NAME` を更新すること。
+    - 大規模な変更時は `sw.js` の `CACHE_NAME` を更新すること（現在: `inventory-app-v4`）。
+    - ビルドIDを更新してキャッシュ破棄を促す。
