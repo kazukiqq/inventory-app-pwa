@@ -131,26 +131,35 @@ function setupNavigation() {
     const viewIds = ['view-search', 'view-inventory', 'view-master', 'view-settings'];
     let touchStartX = 0;
     let touchStartY = 0;
+    let isMoving = false;
 
     document.addEventListener('touchstart', (e) => {
-        // Skip swipe if touching input, textarea, select or stock-btn
         const tagName = e.target.tagName.toLowerCase();
-        if (['input', 'textarea', 'select'].includes(tagName)) {
-            touchStartX = 0;
-            return;
-        }
-        if (e.target.closest('.stock-btn') || e.target.closest('.nav-btn')) {
-            touchStartX = 0;
-            return;
-        }
+        if (['input', 'textarea', 'select'].includes(tagName)) return;
+        if (e.target.closest('.stock-btn') || e.target.closest('.nav-btn')) return;
 
-        touchStartX = e.changedTouches[0].clientX;
-        touchStartY = e.changedTouches[0].clientY;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        isMoving = true;
     }, { passive: true });
 
+    document.addEventListener('touchmove', (e) => {
+        if (!isMoving) return;
+
+        const x = e.touches[0].clientX;
+        const y = e.touches[0].clientY;
+        const dx = Math.abs(x - touchStartX);
+        const dy = Math.abs(y - touchStartY);
+
+        // If horizontal move is dominant, prevent default (like browser back/forward)
+        if (dx > dy && dx > 10) {
+            if (e.cancelable) e.preventDefault();
+        }
+    }, { passive: false });
+
     document.addEventListener('touchend', (e) => {
-        // Skip swipe if touch didn't start (e.g. was on an input)
-        if (touchStartX === 0) return;
+        if (!isMoving) return;
+        isMoving = false;
 
         const touchEndX = e.changedTouches[0].clientX;
         const touchEndY = e.changedTouches[0].clientY;
@@ -158,10 +167,8 @@ function setupNavigation() {
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY;
 
-        touchStartX = 0; // Reset
-
-        // Threshold 30px (more sensitive)
-        if (Math.abs(diffX) > 30 && Math.abs(diffX) > Math.abs(diffY)) {
+        // Threshold 25px (Ultra sensitive)
+        if (Math.abs(diffX) > 25 && Math.abs(diffX) > Math.abs(diffY)) {
             const currentView = document.querySelector('.view.active').id;
             const currentIndex = viewIds.indexOf(currentView);
 
@@ -177,6 +184,7 @@ function setupNavigation() {
                 }
             }
         }
+        touchStartX = 0;
     }, { passive: true });
 }
 

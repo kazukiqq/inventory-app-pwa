@@ -38,7 +38,8 @@ body {
     height: 100vh;
     display: flex;
     flex-direction: column;
-    touch-action: pan-y;
+    touch-action: none;
+    /* 完全制御 */
 }
 
 header {
