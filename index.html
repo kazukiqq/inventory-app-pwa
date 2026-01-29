@@ -146,10 +146,9 @@
                         <p class="product-meta" style="font-size: 0.8rem; margin-bottom: 0.5rem;">
                             商品を分類するカテゴリを追加・削除できます。
                         </p>
-                        <div class="row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
-                            <input type="text" id="new-category-input" placeholder="新しいカテゴリ名" style="flex: 1;">
-                            <button type="button" class="btn-primary" onclick="addCategory()"
-                                style="flex-shrink: 0;">追加</button>
+                        <div class="row category-input-row">
+                            <input type="text" id="new-category-input" placeholder="新しいカテゴリ名">
+                            <button type="button" class="btn-primary" onclick="addCategory()">追加</button>
                         </div>
                         <div id="category-list" class="category-list">
                             <!-- Categories injected here -->

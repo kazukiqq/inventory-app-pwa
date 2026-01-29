@@ -415,17 +415,34 @@ button {
     background-color: #fecaca;
 }
 
-/* Category Management Input */
-#new-category-input {
-    font-size: 1.1rem;
-    padding: 0.9rem;
-    height: 3.5rem;
-    /* 明示的に高さを確保 */
+/* Category Management Input Layout */
+.category-input-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    align-items: stretch;
+    /* 高さを揃える */
 }
 
-/* Category Add Button */
-#new-category-input+button {
+#new-category-input {
+    flex: 1;
+    /* 入力欄を可能な限り広げる */
+    font-size: 1.1rem;
+    padding: 0.8rem;
+    min-width: 0;
+    /* Flexboxでの折り返し防止 */
+}
+
+.category-input-row button {
+    flex-shrink: 0;
+    /* ボタンは縮めない */
     padding: 0 1.5rem;
     font-size: 1rem;
     font-weight: bold;
+    display: flex;
+    /* ボタン内のテキスト配置 */
+    align-items: center;
+    /* 中央揃え */
+    justify-content: center;
+    /* 中央揃え */
 }
