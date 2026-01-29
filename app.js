@@ -142,12 +142,18 @@ function setupForms() {
     barcodeInput.addEventListener('change', async (e) => {
         const code = e.target.value;
         const kokuyoBtn = document.getElementById('kokuyo-search-btn');
+        const crownBtn = document.getElementById('crown-search-btn');
         const amazonBtn = document.getElementById('amazon-search-btn');
 
         if (code) {
             kokuyoBtn.style.display = 'block';
             kokuyoBtn.onclick = () => {
                 window.open(`https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${code}`, '_blank');
+            };
+
+            crownBtn.style.display = 'block';
+            crownBtn.onclick = () => {
+                window.open(`https://www.crowngroup.co.jp/office-zukan/list/?p_keyword=${code}`, '_blank');
             };
 
             amazonBtn.style.display = 'block';
@@ -161,6 +167,8 @@ function setupForms() {
             }
         } else {
             kokuyoBtn.style.display = 'none';
+            crownBtn.style.display = 'none';
+            amazonBtn.style.display = 'none';
         }
     });
 
@@ -339,6 +347,7 @@ function saveProductFromForm() {
     document.getElementById('product-form').reset();
     document.getElementById('prod-id').value = '';
     document.getElementById('kokuyo-search-btn').style.display = 'none';
+    document.getElementById('crown-search-btn').style.display = 'none';
     document.getElementById('amazon-search-btn').style.display = 'none';
     alert('保存しました');
     renderMasterList();
@@ -363,11 +372,16 @@ function editProduct(id) {
     document.getElementById('prod-barcode').value = p.barcode || '';
 
     const kokuyoBtn = document.getElementById('kokuyo-search-btn');
+    const crownBtn = document.getElementById('crown-search-btn');
     const amazonBtn = document.getElementById('amazon-search-btn');
     if (p.barcode) {
         kokuyoBtn.style.display = 'block';
         kokuyoBtn.onclick = () => {
             window.open(`https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${p.barcode}`, '_blank');
+        };
+        crownBtn.style.display = 'block';
+        crownBtn.onclick = () => {
+            window.open(`https://www.crowngroup.co.jp/office-zukan/list/?p_keyword=${p.barcode}`, '_blank');
         };
         amazonBtn.style.display = 'block';
         amazonBtn.onclick = () => {
@@ -375,6 +389,7 @@ function editProduct(id) {
         };
     } else {
         kokuyoBtn.style.display = 'none';
+        crownBtn.style.display = 'none';
         amazonBtn.style.display = 'none';
     }
 
@@ -420,11 +435,14 @@ function performSearch(query) {
             container.innerHTML = `
                 <div style="text-align:center; padding: 1rem;">
                     <p style="color: var(--secondary-color); margin-bottom: 1rem;">アプリ内に見つかりませんでした</p>
-                    <div class="row" style="gap:10px; justify-content:center;">
-                        <a href="https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.8rem;">
+                    <div class="row" style="gap:5px; justify-content:center; flex-wrap: wrap;">
+                        <a href="https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.7rem; flex: 1; text-align: center;">
                             コクヨ ↗
                         </a>
-                        <a href="https://www.amazon.co.jp/s?k=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.8rem;">
+                        <a href="https://www.crowngroup.co.jp/office-zukan/list/?p_keyword=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.7rem; flex: 1; text-align: center;">
+                            オフィス図鑑 ↗
+                        </a>
+                        <a href="https://www.amazon.co.jp/s?k=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.7rem; flex: 1; text-align: center;">
                             Amazon ↗
                         </a>
                     </div>
