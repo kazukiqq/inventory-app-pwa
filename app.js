@@ -144,25 +144,23 @@ function setupNavigation() {
             return;
         }
 
-        touchStartX = e.changedTouches[0].screenX;
-        touchStartY = e.changedTouches[0].screenY;
-    }, { passive: false });
+        touchStartX = e.changedTouches[0].clientX;
+        touchStartY = e.changedTouches[0].clientY;
+    }, { passive: true });
 
     document.addEventListener('touchend', (e) => {
         // Skip swipe if touch didn't start (e.g. was on an input)
         if (touchStartX === 0) return;
 
-        const touchEndX = e.changedTouches[0].screenX;
-        const touchEndY = e.changedTouches[0].screenY;
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
 
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY;
 
-        // Reset start position for next touch
-        const startX = touchStartX;
-        touchStartX = 0;
+        touchStartX = 0; // Reset
 
-        // Threshold and check if horizontal swipe (reduced from 70 to 50)
+        // Threshold 50px and must be horizontal
         if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
             const currentView = document.querySelector('.view.active').id;
             const currentIndex = viewIds.indexOf(currentView);
