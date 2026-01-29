@@ -35,23 +35,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
+        let refreshing = false;
+
+        // Listen for the controlling service worker changing
+        // and reload the page once the new SW has taken over.
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
+            window.location.reload();
+        });
+
         window.addEventListener('load', () => {
-            // Force fetch sw.js by adding query param and setting updateViaCache to none
-            const swUrl = `./sw.js?v=${Date.now()}`;
-            navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
+            // Register service worker with updateViaCache: 'none' to check network every time
+            navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('Service Worker registered', reg);
 
-                    // Listen for updates
+                    // Periodically check for updates
+                    reg.update();
+
                     reg.onupdatefound = () => {
                         const installingWorker = reg.installing;
                         installingWorker.onstatechange = () => {
                             if (installingWorker.state === 'installed') {
                                 if (navigator.serviceWorker.controller) {
                                     // New content is available; ask user to reload
-                                    console.log('New content available, reloading...');
+                                    console.log('New content available, prompting user...');
                                     if (confirm('新しいバージョンが利用可能です。更新しますか？')) {
-                                        window.location.reload();
+                                        if (installingWorker) {
+                                            installingWorker.postMessage({ type: 'SKIP_WAITING' });
+                                        }
                                     }
                                 }
                             }
