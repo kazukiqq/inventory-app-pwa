@@ -38,7 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let refreshing = false;
 
         // Listen for the controlling service worker changing
-        // and reload the page once the new SW has taken over.
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (refreshing) return;
             refreshing = true;
@@ -46,10 +45,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         window.addEventListener('load', () => {
-            // Register service worker with updateViaCache: 'none' to check network every time
-            navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+            // App version to bypass HTTP cache for sw.js itself
+            const swUrl = './sw.js?build=1.1.3';
+            navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('Service Worker registered', reg);
+                    console.log('Service Worker registered: v1.1.3', reg);
 
                     // Periodically check for updates
                     reg.update();
