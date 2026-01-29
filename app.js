@@ -160,8 +160,8 @@ function setupNavigation() {
 
         touchStartX = 0; // Reset
 
-        // Threshold 50px and must be horizontal
-        if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+        // Threshold 30px (more sensitive)
+        if (Math.abs(diffX) > 30 && Math.abs(diffX) > Math.abs(diffY)) {
             const currentView = document.querySelector('.view.active').id;
             const currentIndex = viewIds.indexOf(currentView);
 
