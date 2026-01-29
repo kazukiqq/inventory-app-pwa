@@ -9,7 +9,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.2');
+    console.log('App version: v1.2.3');
 
     loadData();
     loadCategories();
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.2';
+            const swUrl = './sw.js?build=1.2.3';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('SW Registered: v1.1.3-rev3');
@@ -316,8 +316,8 @@ function setupNavigation() {
 
         stX = 0; // reset
 
-        // Horizontal swipe? (Threshold: 30px)
-        if (Math.abs(dX) > 30 && Math.abs(dX) > Math.abs(dY)) {
+        // Horizontal swipe? (Threshold: 25px)
+        if (Math.abs(dX) > 25 && Math.abs(dX) > Math.abs(dY)) {
             const currentView = document.querySelector('.view.active').id;
             const currentIndex = viewIds.indexOf(currentView);
 
