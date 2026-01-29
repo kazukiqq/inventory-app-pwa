@@ -7,6 +7,9 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
+    // 起動確認用アラート（一度更新されれば確認できるはずです）
+    console.log('App version: v1.1.3');
+
     loadData();
     setupNavigation();
     setupForms();
@@ -46,10 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.1.3';
+            const swUrl = './sw.js?build=1.1.3-rev3';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('Service Worker registered: v1.1.3', reg);
+                    console.log('SW Registered: v1.1.3-rev3');
 
                     // Periodically check for updates
                     reg.update();
