@@ -34,13 +34,30 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch Event
+// Fetch Event - Network First for the main page, Cache First for others
 self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
-        })
-    );
+    const url = new URL(event.request.url);
+
+    // For the main page (index.html or root), try network first
+    if (url.pathname === '/' || url.pathname.endsWith('index.html')) {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    // Update cache with new version
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+                    return response;
+                })
+                .catch(() => caches.match(event.request)) // Offline
+        );
+    } else {
+        // Cache First for other assets (CSS, JS, images)
+        event.respondWith(
+            caches.match(event.request).then((response) => {
+                return response || fetch(event.request);
+            })
+        );
+    }
 });
 // Message Event for skipWaiting
 self.addEventListener('message', (event) => {
