@@ -8,7 +8,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.1.4');
+    console.log('App version: v1.1.5');
 
     loadData();
     setupNavigation();
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.1.4';
+            const swUrl = './sw.js?build=1.1.5';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('SW Registered: v1.1.3-rev3');
@@ -532,14 +532,16 @@ function performSearch(query) {
         const div = document.createElement('div');
         div.className = 'product-item';
         div.innerHTML = `
-            <div class="product-info">
+            <div class="product-info" style="flex: 1;">
                 <h3>${p.name}</h3>
-                <div class="product-meta">¥${p.price}</div>
+                <div class="product-meta">¥${p.price} | ${p.barcode || '-'}</div>
             </div>
-            <div class="product-stock" style="text-align:right;">
-                <div style="font-size:0.8rem; color: #64748b;">現在庫</div>
-                <div style="font-size:1.5rem; font-weight:bold;">${p.stock}</div>
+            <div class="stock-control" style="display: flex; align-items: center; gap: 0.5rem;">
+                <button class="stock-btn" onclick="updateStockFromSearch(${p.id}, -1)">-</button>
+                <span class="stock-val" id="search-stock-val-${p.id}">${p.stock}</span>
+                <button class="stock-btn" onclick="updateStockFromSearch(${p.id}, 1)">+</button>
             </div>
+            <button class="btn-secondary" style="margin-left: 0.5rem; font-size: 0.8rem;" onclick="editProductFromSearch(${p.id})">編集</button>
         `;
         container.appendChild(div);
     });
@@ -600,6 +602,40 @@ function updateStock(id, delta) {
         const valSpan = document.getElementById(`stock-val-${id}`);
         if (valSpan) valSpan.innerText = p.stock;
     }
+}
+
+// Update stock from search results and refresh UI
+function updateStockFromSearch(id, delta) {
+    const p = products.find(p => p.id === id);
+    if (p) {
+        p.stock += delta;
+        if (p.stock < 0) p.stock = 0;
+
+        saveData();
+
+        // --- Log Recording ---
+        const logs = JSON.parse(localStorage.getItem('inventory_app_logs') || '[]');
+        logs.push({
+            timestamp: new Date().toLocaleString('ja-JP'),
+            productId: p.id,
+            name: p.name,
+            delta: delta > 0 ? `+${delta}` : `${delta}`,
+            resultStock: p.stock,
+            barcode: p.barcode || ''
+        });
+        localStorage.setItem('inventory_app_logs', JSON.stringify(logs));
+        // ---------------------
+
+        // Update UI for search results
+        const valSpan = document.getElementById(`search-stock-val-${id}`);
+        if (valSpan) valSpan.innerText = p.stock;
+    }
+}
+
+// Edit product from search results
+function editProductFromSearch(id) {
+    editProduct(id);
+    navigateToView('view-master');
 }
 
 // --- Barcode Scanner ---
