@@ -128,22 +128,32 @@ function setupNavigation() {
     });
 
     // Swipe Navigation
-    const mainContent = document.getElementById('main-content');
     const viewIds = ['view-search', 'view-inventory', 'view-master', 'view-settings'];
     let touchStartX = 0;
     let touchStartY = 0;
 
-    mainContent.addEventListener('touchstart', (e) => {
+    document.addEventListener('touchstart', (e) => {
+        // Skip swipe if touching input, textarea, select or stock-btn
+        const tagName = e.target.tagName.toLowerCase();
+        if (['input', 'textarea', 'select'].includes(tagName)) return;
+        if (e.target.closest('.stock-btn') || e.target.closest('.nav-btn')) return;
+
         touchStartX = e.changedTouches[0].screenX;
         touchStartY = e.changedTouches[0].screenY;
     }, { passive: true });
 
-    mainContent.addEventListener('touchend', (e) => {
+    document.addEventListener('touchend', (e) => {
+        // Skip swipe if touch didn't start (e.g. was on an input)
+        if (touchStartX === 0) return;
+
         const touchEndX = e.changedTouches[0].screenX;
         const touchEndY = e.changedTouches[0].screenY;
 
         const diffX = touchEndX - touchStartX;
         const diffY = touchEndY - touchStartY;
+
+        // Reset start position for next touch
+        touchStartX = 0;
 
         // Threshold and check if horizontal swipe
         if (Math.abs(diffX) > 70 && Math.abs(diffX) > Math.abs(diffY)) {
