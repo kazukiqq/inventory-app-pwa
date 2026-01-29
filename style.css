@@ -448,3 +448,17 @@ button {
     justify-content: center;
     /* 中央揃え */
 }
+
+/* Low Stock Alert */
+.product-item.low-stock {
+    background-color: #fef2f2;
+    /* Light Red */
+    border: 1px solid #fca5a5;
+}
+
+.product-item.low-stock .stock-val,
+.product-item.low-stock .product-meta {
+    color: #dc2626;
+    /* Red 600 */
+    font-weight: bold;
+}

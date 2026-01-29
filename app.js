@@ -9,7 +9,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.3');
+    console.log('App version: v1.2.4');
 
     loadData();
     loadCategories();
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.3';
+            const swUrl = './sw.js?build=1.2.4';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('SW Registered: v1.1.3-rev3');
@@ -691,7 +691,7 @@ function performSearch(query) {
 
     hits.forEach(p => {
         const div = document.createElement('div');
-        div.className = 'product-item';
+        div.className = `product-item ${p.stock <= 3 ? 'low-stock' : ''}`;
         const categoryLabel = p.category ? `<span class="category-badge">${p.category}</span>` : '';
         div.innerHTML = `
             <div class="product-info" style="flex: 1;">
@@ -728,7 +728,7 @@ function renderInventory(filterText = '') {
 
     filtered.forEach(p => {
         const div = document.createElement('div');
-        div.className = 'product-item';
+        div.className = `product-item ${p.stock <= 3 ? 'low-stock' : ''}`;
         const categoryLabel = p.category ? `<span class="category-badge">${p.category}</span>` : '';
         div.innerHTML = `
             <div class="product-info">
