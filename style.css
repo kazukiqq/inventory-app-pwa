@@ -434,6 +434,8 @@ button {
 }
 
 .category-input-row button {
+    width: auto;
+    /* .btn-primaryの幅100%を打ち消す */
     flex-shrink: 0;
     /* ボタンは縮めない */
     padding: 0 1.5rem;
