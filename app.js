@@ -36,7 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
+            // Force fetch sw.js by adding query param and setting updateViaCache to none
+            const swUrl = `./sw.js?v=${Date.now()}`;
+            navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('Service Worker registered', reg);
 
