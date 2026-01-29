@@ -135,12 +135,18 @@ function setupNavigation() {
     document.addEventListener('touchstart', (e) => {
         // Skip swipe if touching input, textarea, select or stock-btn
         const tagName = e.target.tagName.toLowerCase();
-        if (['input', 'textarea', 'select'].includes(tagName)) return;
-        if (e.target.closest('.stock-btn') || e.target.closest('.nav-btn')) return;
+        if (['input', 'textarea', 'select'].includes(tagName)) {
+            touchStartX = 0;
+            return;
+        }
+        if (e.target.closest('.stock-btn') || e.target.closest('.nav-btn')) {
+            touchStartX = 0;
+            return;
+        }
 
         touchStartX = e.changedTouches[0].screenX;
         touchStartY = e.changedTouches[0].screenY;
-    }, { passive: true });
+    }, { passive: false });
 
     document.addEventListener('touchend', (e) => {
         // Skip swipe if touch didn't start (e.g. was on an input)
@@ -153,10 +159,11 @@ function setupNavigation() {
         const diffY = touchEndY - touchStartY;
 
         // Reset start position for next touch
+        const startX = touchStartX;
         touchStartX = 0;
 
-        // Threshold and check if horizontal swipe
-        if (Math.abs(diffX) > 70 && Math.abs(diffX) > Math.abs(diffY)) {
+        // Threshold and check if horizontal swipe (reduced from 70 to 50)
+        if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
             const currentView = document.querySelector('.view.active').id;
             const currentIndex = viewIds.indexOf(currentView);
 
