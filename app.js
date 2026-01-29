@@ -132,62 +132,39 @@ function setupNavigation() {
 
     // Swipe Navigation
     const viewIds = ['view-search', 'view-inventory', 'view-master', 'view-settings'];
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let isMoving = false;
+    let stX = 0;
+    let stY = 0;
 
     document.addEventListener('touchstart', (e) => {
-        const tagName = e.target.tagName.toLowerCase();
-        if (['input', 'textarea', 'select'].includes(tagName)) return;
-        if (e.target.closest('.stock-btn') || e.target.closest('.nav-btn')) return;
+        const target = e.target;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+        if (target.closest('.stock-btn') || target.closest('.nav-btn')) return;
 
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-        isMoving = true;
-    }, { passive: false });
-
-    document.addEventListener('touchmove', (e) => {
-        if (!isMoving) return;
-
-        const x = e.touches[0].clientX;
-        const y = e.touches[0].clientY;
-        const dx = Math.abs(x - touchStartX);
-        const dy = Math.abs(y - touchStartY);
-
-        // If horizontal move is dominant, prevent default (like browser back/forward)
-        if (dx > dy && dx > 10) {
-            if (e.cancelable) e.preventDefault();
-        }
-    }, { passive: false });
+        stX = e.touches[0].screenX;
+        stY = e.touches[0].screenY;
+    }, { passive: true });
 
     document.addEventListener('touchend', (e) => {
-        if (!isMoving) return;
-        isMoving = false;
+        if (stX === 0) return;
 
-        const touchEndX = e.changedTouches[0].clientX;
-        const touchEndY = e.changedTouches[0].clientY;
+        const enX = e.changedTouches[0].screenX;
+        const enY = e.changedTouches[0].screenY;
+        const dX = enX - stX;
+        const dY = enY - stY;
 
-        const diffX = touchEndX - touchStartX;
-        const diffY = touchEndY - touchStartY;
+        stX = 0; // reset
 
-        // Threshold 25px (Ultra sensitive)
-        if (Math.abs(diffX) > 25 && Math.abs(diffX) > Math.abs(diffY)) {
+        // Horizontal swipe? (Threshold: 30px)
+        if (Math.abs(dX) > 30 && Math.abs(dX) > Math.abs(dY)) {
             const currentView = document.querySelector('.view.active').id;
             const currentIndex = viewIds.indexOf(currentView);
 
-            if (diffX < 0) {
-                // Left swipe (next)
-                if (currentIndex < viewIds.length - 1) {
-                    navigateToView(viewIds[currentIndex + 1]);
-                }
-            } else {
-                // Right swipe (prev)
-                if (currentIndex > 0) {
-                    navigateToView(viewIds[currentIndex - 1]);
-                }
+            if (dX < 0 && currentIndex < viewIds.length - 1) {
+                navigateToView(viewIds[currentIndex + 1]);
+            } else if (dX > 0 && currentIndex > 0) {
+                navigateToView(viewIds[currentIndex - 1]);
             }
         }
-        touchStartX = 0;
     }, { passive: true });
 }
 
