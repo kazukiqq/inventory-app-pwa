@@ -45,14 +45,26 @@ function doPost(e) {
         // Set Header
         const headers = ["ID", "商品名", "単価", "在庫数", "バーコード"];
 
-        if (!Array.isArray(payload) || payload.length === 0) {
+        // Extract products array from payload (support both formats)
+        let productList;
+        if (Array.isArray(payload)) {
+            // Legacy format: payload is directly an array
+            productList = payload;
+        } else if (payload.products && Array.isArray(payload.products)) {
+            // New format: { products: [...], logs: [...] }
+            productList = payload.products;
+        } else {
+            productList = [];
+        }
+
+        if (productList.length === 0) {
             sheet.appendRow(headers);
             return createResponse({ status: "success", message: "Cleared all data" });
         }
 
         // Prepare Data
         const rows = [headers];
-        payload.forEach(p => {
+        productList.forEach(p => {
             rows.push([
                 p.id,
                 p.name,
@@ -65,7 +77,7 @@ function doPost(e) {
         // Bulk write
         sheet.getRange(1, 1, rows.length, headers.length).setValues(rows);
 
-        return createResponse({ status: "success", count: payload.length });
+        return createResponse({ status: "success", count: productList.length });
 
     } catch (error) {
         return createResponse({ status: "error", message: error.toString() });
