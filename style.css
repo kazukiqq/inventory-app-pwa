@@ -398,6 +398,7 @@ button {
     background-color: #f1f5f9;
     color: var(--secondary-color);
 }
+
 .btn-small:hover {
     background-color: #e2e8f0;
 }
@@ -409,7 +410,22 @@ button {
     font-size: 0.8rem;
     border-radius: 0.3rem;
 }
+
 .btn-danger-small:hover {
     background-color: #fecaca;
 }
 
+/* Category Management Input */
+#new-category-input {
+    font-size: 1.1rem;
+    padding: 0.9rem;
+    height: 3.5rem;
+    /* 明示的に高さを確保 */
+}
+
+/* Category Add Button */
+#new-category-input+button {
+    padding: 0 1.5rem;
+    font-size: 1rem;
+    font-weight: bold;
+}
