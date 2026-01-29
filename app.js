@@ -9,7 +9,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.0');
+    console.log('App version: v1.2.1');
 
     loadData();
     loadCategories();
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.1.5';
+            const swUrl = './sw.js?build=1.2.1';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('SW Registered: v1.1.3-rev3');
@@ -142,7 +142,7 @@ function addCategory() {
 function deleteCategory(index) {
     const name = categories[index];
     if (!confirm(`「${name}」を削除しますか？\n※このカテゴリに設定されている商品は「カテゴリなし」のような状態になります。`)) return;
-    
+
     categories.splice(index, 1);
     saveCategories();
     renderCategoryList();
@@ -152,7 +152,7 @@ function deleteCategory(index) {
 function editCategory(index) {
     const oldName = categories[index];
     const newName = prompt('新しいカテゴリ名を入力してください:', oldName);
-    
+
     if (newName === null) return; // Cancelled
     const trimmed = newName.trim();
     if (!trimmed) {
@@ -211,7 +211,7 @@ function renderCategoryList() {
     categories.forEach((cat, index) => {
         const div = document.createElement('div');
         div.className = 'category-manage-item';
-        
+
         // Buttons state
         const isFirst = index === 0;
         const isLast = index === categories.length - 1;
