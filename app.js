@@ -139,9 +139,62 @@ function addCategory() {
     alert('カテゴリを追加しました');
 }
 
-function deleteCategory(name) {
-    if (!confirm(`「${name}」を削除しますか？`)) return;
-    categories = categories.filter(c => c !== name);
+function deleteCategory(index) {
+    const name = categories[index];
+    if (!confirm(`「${name}」を削除しますか？\n※このカテゴリに設定されている商品は「カテゴリなし」のような状態になります。`)) return;
+    
+    categories.splice(index, 1);
+    saveCategories();
+    renderCategoryList();
+    renderCategoryDropdowns();
+}
+
+function editCategory(index) {
+    const oldName = categories[index];
+    const newName = prompt('新しいカテゴリ名を入力してください:', oldName);
+    
+    if (newName === null) return; // Cancelled
+    const trimmed = newName.trim();
+    if (!trimmed) {
+        alert('カテゴリ名を入力してください');
+        return;
+    }
+    if (trimmed !== oldName && categories.includes(trimmed)) {
+        alert('そのカテゴリ名は既に存在します');
+        return;
+    }
+
+    // Update Category Name
+    categories[index] = trimmed;
+    saveCategories();
+
+    // Update linked products
+    let updatedCount = 0;
+    products.forEach(p => {
+        if (p.category === oldName) {
+            p.category = trimmed;
+            updatedCount++;
+        }
+    });
+
+    if (updatedCount > 0) {
+        saveData();
+        renderMasterList();
+        renderInventory();
+        // alert(`関連する商品 ${updatedCount}件のカテゴリ名も更新しました`);
+    }
+
+    renderCategoryList();
+    renderCategoryDropdowns();
+}
+
+function moveCategory(index, direction) {
+    // direction: -1 (up), 1 (down)
+    if (direction === -1 && index > 0) {
+        [categories[index], categories[index - 1]] = [categories[index - 1], categories[index]];
+    } else if (direction === 1 && index < categories.length - 1) {
+        [categories[index], categories[index + 1]] = [categories[index + 1], categories[index]];
+    }
     saveCategories();
     renderCategoryList();
     renderCategoryDropdowns();
@@ -151,13 +204,26 @@ function renderCategoryList() {
     const container = document.getElementById('category-list');
     if (!container) return;
 
+    // Switch check class for styling
+    container.className = 'category-manage-list';
     container.innerHTML = '';
-    categories.forEach(cat => {
+
+    categories.forEach((cat, index) => {
         const div = document.createElement('div');
-        div.className = 'category-item';
+        div.className = 'category-manage-item';
+        
+        // Buttons state
+        const isFirst = index === 0;
+        const isLast = index === categories.length - 1;
+
         div.innerHTML = `
-            <span>${cat}</span>
-            <button class="btn-danger-small" onclick="deleteCategory('${cat}')">✕</button>
+            <span class="category-manage-name">${cat}</span>
+            <div class="category-controls">
+                <button class="btn-small" onclick="moveCategory(${index}, -1)" ${isFirst ? 'disabled style="opacity:0.3"' : ''}>↑</button>
+                <button class="btn-small" onclick="moveCategory(${index}, 1)" ${isLast ? 'disabled style="opacity:0.3"' : ''}>↓</button>
+                <button class="btn-small" onclick="editCategory(${index})">✎</button>
+                <button class="btn-danger-small" onclick="deleteCategory(${index})">🗑️</button>
+            </div>
         `;
         container.appendChild(div);
     });
