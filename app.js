@@ -82,27 +82,74 @@ function saveData() {
 }
 
 // --- Navigation ---
+function navigateToView(targetId) {
+    const navBtns = document.querySelectorAll('.nav-btn');
+    const views = document.querySelectorAll('.view');
+    const targetBtn = document.querySelector(`.nav-btn[data-target="${targetId}"]`);
+
+    if (!targetBtn) return;
+
+    // Remove active from all
+    navBtns.forEach(b => b.classList.remove('active'));
+    views.forEach(v => v.classList.remove('active'));
+
+    // Add active to target
+    document.getElementById(targetId).classList.add('active');
+    targetBtn.classList.add('active');
+
+    // Stop scanner if moving
+    stopScanner();
+
+    // Refresh lists
+    if (targetId === 'view-inventory') renderInventory();
+    if (targetId === 'view-master') renderMasterList();
+}
+
 function setupNavigation() {
     const navBtns = document.querySelectorAll('.nav-btn');
     navBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
-            // Remove active from all
-            navBtns.forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-
-            // Add active to clicked
             const targetId = btn.getAttribute('data-target');
-            document.getElementById(targetId).classList.add('active');
-            btn.classList.add('active');
-
-            // Stop scanner if moving away
-            stopScanner();
-
-            // Refresh lists
-            if (targetId === 'view-inventory') renderInventory();
-            if (targetId === 'view-master') renderMasterList();
+            navigateToView(targetId);
         });
     });
+
+    // Swipe Navigation
+    const mainContent = document.getElementById('main-content');
+    const viewIds = ['view-search', 'view-inventory', 'view-master', 'view-settings'];
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    mainContent.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    mainContent.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].screenX;
+        const touchEndY = e.changedTouches[0].screenY;
+
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
+
+        // Threshold and check if horizontal swipe
+        if (Math.abs(diffX) > 70 && Math.abs(diffX) > Math.abs(diffY)) {
+            const currentView = document.querySelector('.view.active').id;
+            const currentIndex = viewIds.indexOf(currentView);
+
+            if (diffX < 0) {
+                // Left swipe (next)
+                if (currentIndex < viewIds.length - 1) {
+                    navigateToView(viewIds[currentIndex + 1]);
+                }
+            } else {
+                // Right swipe (prev)
+                if (currentIndex > 0) {
+                    navigateToView(viewIds[currentIndex - 1]);
+                }
+            }
+        }
+    }, { passive: true });
 }
 
 // --- Settings & API ---
