@@ -16,9 +16,8 @@
         <header
             style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000;">
             <h1 style="margin: 0; color: white; font-size: 1.2rem;">在庫管理</h1>
-            <span
-                style="font-size: 0.8rem; font-weight: bold; color: #3b82f6; background: white; padding: 2px 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">v1.2.21
-                最新</span>
+            <span class="version-badge"
+                style="font-size: 0.75rem; font-weight: bold; color: #1e3a8a; background: rgba(255,255,255,0.9); padding: 3px 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">v1.2.22</span>
         </header>
 
         <main id="main-content">
@@ -147,7 +146,7 @@
                             商品を分類するカテゴリを追加・削除できます。
                         </p>
                         <div class="row category-input-row">
-                            <input type="text" id="new-category-input" placeholder="新しいカテゴリ名">
+                            <input type="text" id="new-category-input" placeholder="新しいカテゴリ名" aria-label="新しいカテゴリ名">
                             <button type="button" class="btn-primary" onclick="addCategory()">追加</button>
                         </div>
                         <div id="category-list" class="category-list">
@@ -185,20 +184,20 @@
         </main>
 
         <nav class="bottom-nav">
-            <button class="nav-btn active" data-target="view-search">
-                <i class="icon">🔍</i>
+            <button class="nav-btn active" data-target="view-search" aria-label="検索画面を表示">
+                <i class="icon" aria-hidden="true">🔍</i>
                 <span>検索</span>
             </button>
-            <button class="nav-btn" data-target="view-inventory">
-                <i class="icon">📦</i>
+            <button class="nav-btn" data-target="view-inventory" aria-label="棚卸画面を表示">
+                <i class="icon" aria-hidden="true">📦</i>
                 <span>棚卸</span>
             </button>
-            <button class="nav-btn" data-target="view-master">
-                <i class="icon">📝</i>
+            <button class="nav-btn" data-target="view-master" aria-label="商品登録画面を表示">
+                <i class="icon" aria-hidden="true">📝</i>
                 <span>登録</span>
             </button>
-            <button class="nav-btn" data-target="view-settings">
-                <i class="icon">⚙️</i>
+            <button class="nav-btn" data-target="view-settings" aria-label="設定画面を表示">
+                <i class="icon" aria-hidden="true">⚙️</i>
                 <span>設定</span>
             </button>
         </nav>
