@@ -10,7 +10,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.14');
+    console.log('App version: v1.2.15');
 
     loadData();
     loadCategories();
@@ -56,10 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.14';
+            const swUrl = './sw.js?build=1.2.15';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('SW Registered: v1.2.14');
+                    console.log('SW Registered: v1.2.15');
 
                     // Periodically check for updates
                     reg.update();
@@ -888,6 +888,8 @@ function initScanner(targetInputId) {
             // Add a small delay to ensure the video track is fully ready
             setTimeout(() => {
                 const torchBtn = document.getElementById('scanner-torch-btn');
+                if (!torchBtn) return;
+
                 // Reset button state
                 torchBtn.style.display = 'none';
                 torchBtn.textContent = '💡 ライト ON';
@@ -897,8 +899,14 @@ function initScanner(targetInputId) {
                     const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
                     console.log('Camera Capabilities:', capabilities);
 
-                    if (capabilities && capabilities.torchFeature().isSupported()) {
+                    // Check support safely
+                    const isTorchSupported = capabilities &&
+                        typeof capabilities.torchFeature === 'function' &&
+                        capabilities.torchFeature().isSupported();
+
+                    if (isTorchSupported) {
                         torchBtn.style.display = 'block';
+                        console.log('Torch is supported, showing button.');
 
                         let isTorchOn = false;
                         torchBtn.onclick = () => {
@@ -911,6 +919,8 @@ function initScanner(targetInputId) {
                                 })
                                 .catch(err => {
                                     console.error("Failed to toggle torch", err);
+                                    alert('ライトの切り替えに失敗しました');
+                                    isTorchOn = !isTorchOn; // Revert
                                 });
                         };
                     } else {
@@ -919,7 +929,7 @@ function initScanner(targetInputId) {
                 } catch (e) {
                     console.warn("Torch capability check failed", e);
                 }
-            }, 500);
+            }, 1000);
         })
         .catch(err => {
             console.error("Error starting scanner", err);
