@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const swUrl = './sw.js?build=1.2.13';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('SW Registered: v1.1.3-rev3');
+                    console.log('SW Registered: v1.2.13');
 
                     // Periodically check for updates
                     reg.update();
@@ -882,12 +882,44 @@ function initScanner(targetInputId) {
         stopScanner();
     }, (errorMessage) => {
         // parse error, ignore it.
-    }).catch(err => {
-        console.error("Error starting scanner", err);
-        alert('カメラの起動に失敗しました。権限を確認してください。');
-        document.getElementById('scanner-modal').style.display = 'none'; // Hide on error
-        html5QrcodeScanner = null;
-    });
+    })
+        .then(() => {
+            // --- Torch Logic ---
+            const torchBtn = document.getElementById('scanner-torch-btn');
+            // Reset button state
+            torchBtn.style.display = 'none';
+            torchBtn.textContent = '💡 ライト ON';
+            torchBtn.onclick = null;
+
+            try {
+                const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
+                if (capabilities && capabilities.torchFeature().isSupported()) {
+                    torchBtn.style.display = 'block';
+
+                    let isTorchOn = false;
+                    torchBtn.onclick = () => {
+                        isTorchOn = !isTorchOn;
+                        html5QrCode.applyVideoConstraints({
+                            advanced: [{ torch: isTorchOn }]
+                        })
+                            .then(() => {
+                                torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
+                            })
+                            .catch(err => {
+                                console.error("Failed to toggle torch", err);
+                            });
+                    };
+                }
+            } catch (e) {
+                console.warn("Torch capability check failed", e);
+            }
+        })
+        .catch(err => {
+            console.error("Error starting scanner", err);
+            alert('カメラの起動に失敗しました。権限を確認してください。');
+            document.getElementById('scanner-modal').style.display = 'none'; // Hide on error
+            html5QrcodeScanner = null;
+        });
 }
 
 function stopScanner() {

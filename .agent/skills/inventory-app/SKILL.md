@@ -115,6 +115,9 @@ SPAとして実装されており、タブ切り替えで以下のViewを表示�
 
 ### コード規約
 - **Vanilla JS**: ES6+ (Arrow functions, async/await, Template literals)
+- **Gitワークフロー**:
+    - 新機能追加や改修が完了し、動作確認が取れたら**必ずリモートリポジトリへプッシュ**すること。
+    - コミットメッセージは `feat:`, `fix:`, `perf:` などのConventional Commits形式を推奨。
 - **Service Worker**: 
     - 静的資産の追加時は `sw.js` の `ASSETS` 配列を更新。
     - 大規模な変更時は `sw.js` の `CACHE_NAME` を更新すること（現在: `inventory-app-v4`）。
