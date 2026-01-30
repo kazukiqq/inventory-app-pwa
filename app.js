@@ -10,7 +10,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.17');
+    console.log('App version: v1.2.18');
 
     loadData();
     loadCategories();
@@ -56,10 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.17';
+            const swUrl = './sw.js?build=1.2.18';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('SW Registered: v1.2.17');
+                    console.log('SW Registered: v1.2.18');
 
                     // Periodically check for updates
                     reg.update();
@@ -906,48 +906,54 @@ function initScanner(targetInputId) {
                 }
 
                 torchBtn.onclick = async () => {
-                    try {
-                        isTorchOn = !isTorchOn;
+                    isTorchOn = !isTorchOn;
 
-                        // 1. Get the video track directly if possible
-                        let track = null;
-                        if (html5QrCode.getRunningTrackCameraCapabilities && html5QrCode.getRunningTrackCameraCapabilities()) {
-                            // This might not give the raw track, so we use internal methods if available or just rely on applyVideoConstraints
-                        }
-
-                        // 2. Try standard torch constraint
+                    const applyConstraint = async (constraint) => {
                         await html5QrCode.applyVideoConstraints({
-                            advanced: [{ torch: isTorchOn }]
+                            advanced: [constraint]
                         });
+                    };
 
+                    try {
+                        // Attempt 1: Standard Torch
+                        await applyConstraint({ torch: isTorchOn });
                         torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
 
-                    } catch (err) {
-                        console.error("Failed to toggle torch", err);
+                    } catch (err1) {
+                        console.warn("Standard torch failed, trying fallback 1 (fillLightMode: flash)...", err1);
 
-                        // Debugging: Get capabilities to show to user
-                        let capsStr = "不明";
                         try {
-                            const result = html5QrCode.getRunningTrackCameraCapabilities();
-                            // Convert to simple object to stringify
-                            if (result) {
-                                // Provide a dumping ground for the result object
-                                const dump = {};
-                                // Inspect common properties
-                                if (result.torchFeature) dump.torchFeature = result.torchFeature();
-                                if (result.zoomFeature) dump.zoomFeature = result.zoomFeature();
-                                // Try to get raw capabilities if possible. 
-                                // referencing internal track might be hard without valid API, 
-                                // but let's try to print what we have.
-                                capsStr = JSON.stringify(result, null, 2);
+                            // Attempt 2: fillLightMode "flash" (Chrome/Android legacy)
+                            await applyConstraint({ fillLightMode: isTorchOn ? "flash" : "off" });
+                            torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
+
+                        } catch (err2) {
+                            console.warn("Fallback 1 failed, trying fallback 2 (fillLightMode: on)...", err2);
+
+                            try {
+                                // Attempt 3: fillLightMode "on"
+                                await applyConstraint({ fillLightMode: isTorchOn ? "on" : "off" });
+                                torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
+
+                            } catch (err3) {
+                                console.error("All torch attempts failed", err3);
+
+                                // Debugging: Get capabilities to show to user
+                                let capsStr = "不明";
+                                try {
+                                    const result = html5QrCode.getRunningTrackCameraCapabilities();
+                                    if (result) {
+                                        capsStr = JSON.stringify(result, null, 2);
+                                    }
+                                } catch (e) {
+                                    capsStr = e.message;
+                                }
+
+                                alert(`ライトの点灯に失敗しました。\n\nErr1: ${err1.name}\nErr2: ${err2.name}\nErr3: ${err3.name}\n\nCapabilities:\n${capsStr}`);
+
+                                isTorchOn = !isTorchOn; // Revert state
                             }
-                        } catch (e) {
-                            capsStr = e.message;
                         }
-
-                        alert(`エラー: ${err.name}\n${err.message}\n\n詳細: ${err.constraint}\n\nCapabilities:\n${capsStr}`);
-
-                        isTorchOn = !isTorchOn; // Revert state
                     }
                 };
             }, 1000);
