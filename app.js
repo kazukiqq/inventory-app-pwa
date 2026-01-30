@@ -10,7 +10,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.18');
+    console.log('App version: v1.2.19');
 
     loadData();
     loadCategories();
@@ -56,10 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.18';
+            const swUrl = './sw.js?build=1.2.19';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('SW Registered: v1.2.18');
+                    console.log('SW Registered: v1.2.19');
 
                     // Periodically check for updates
                     reg.update();
@@ -908,52 +908,51 @@ function initScanner(targetInputId) {
                 torchBtn.onclick = async () => {
                     isTorchOn = !isTorchOn;
 
-                    const applyConstraint = async (constraint) => {
+                    const applyConstraint = async (constraint, name) => {
                         await html5QrCode.applyVideoConstraints({
                             advanced: [constraint]
                         });
+                        return name;
                     };
+
+                    let successMethod = null;
 
                     try {
                         // Attempt 1: Standard Torch
-                        await applyConstraint({ torch: isTorchOn });
-                        torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
+                        successMethod = await applyConstraint({ torch: isTorchOn }, "Standard Torch");
 
                     } catch (err1) {
-                        console.warn("Standard torch failed, trying fallback 1 (fillLightMode: flash)...", err1);
-
+                        console.warn("Standard torch failed...", err1);
                         try {
-                            // Attempt 2: fillLightMode "flash" (Chrome/Android legacy)
-                            await applyConstraint({ fillLightMode: isTorchOn ? "flash" : "off" });
-                            torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
+                            // Attempt 2: fillLightMode "flash"
+                            successMethod = await applyConstraint({ fillLightMode: isTorchOn ? "flash" : "off" }, "fillLightMode: flash");
 
                         } catch (err2) {
-                            console.warn("Fallback 1 failed, trying fallback 2 (fillLightMode: on)...", err2);
-
+                            console.warn("Fallback 1 failed...", err2);
                             try {
                                 // Attempt 3: fillLightMode "on"
-                                await applyConstraint({ fillLightMode: isTorchOn ? "on" : "off" });
-                                torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
+                                successMethod = await applyConstraint({ fillLightMode: isTorchOn ? "on" : "off" }, "fillLightMode: on");
 
                             } catch (err3) {
-                                console.error("All torch attempts failed", err3);
-
-                                // Debugging: Get capabilities to show to user
+                                console.error("All attempts failed", err3);
                                 let capsStr = "不明";
                                 try {
                                     const result = html5QrCode.getRunningTrackCameraCapabilities();
-                                    if (result) {
-                                        capsStr = JSON.stringify(result, null, 2);
-                                    }
-                                } catch (e) {
-                                    capsStr = e.message;
-                                }
-
-                                alert(`ライトの点灯に失敗しました。\n\nErr1: ${err1.name}\nErr2: ${err2.name}\nErr3: ${err3.name}\n\nCapabilities:\n${capsStr}`);
-
-                                isTorchOn = !isTorchOn; // Revert state
+                                    if (result) capsStr = JSON.stringify(result, null, 2);
+                                } catch (e) { capsStr = e.message; }
+                                alert(`失敗: すべての方法が拒否されました。\n\nCapabilities:\n${capsStr}`);
+                                isTorchOn = !isTorchOn;
+                                return;
                             }
                         }
+                    }
+
+                    // If we got here, one method "succeeded" (no error thrown)
+                    torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
+
+                    // Verify if it actually changed
+                    if (isTorchOn) {
+                        alert(`【デバッグ】\n成功した方法: ${successMethod}\n\nエラーが出ずにここまできましたが、ライトは点いてますか？\n\n点いていない場合、この端末のブラウザは「点灯命令を無視」しています。`);
                     }
                 };
             }, 1000);
