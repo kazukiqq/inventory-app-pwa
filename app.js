@@ -9,7 +9,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.8');
+    console.log('App version: v1.2.10');
 
     loadData();
     loadCategories();
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.4';
+            const swUrl = './sw.js?build=1.2.10';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('SW Registered: v1.1.3-rev3');
@@ -833,7 +833,14 @@ function initScanner(targetInputId) {
     const config = {
         fps: 10,
         qrbox: { width: 250, height: 250 },
-        formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8]
+        formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39
+        ]
     };
 
     html5QrCode.start({ facingMode: "environment" }, config, (decodedText, decodedResult) => {

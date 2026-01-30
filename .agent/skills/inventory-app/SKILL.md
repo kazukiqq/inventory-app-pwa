@@ -64,7 +64,10 @@ SPAとして実装されており、タブ切り替えで以下のViewを表示�
     - バーコード読み取りに使用。
     - CDN: `https://unpkg.com/html5-qrcode`
     - カメラ権限が必要。HTTPS環境またはlocalhostでのみ動作。
-    - **設定**: 読み取り精度向上のため、対応フォーマットを `EAN_13` (JAN) および `EAN_8` に限定しています。
+    - **設定**: 読み取り精度と利便性のバランスのため、以下のフォーマットに対応させています。
+        - `EAN_13`, `EAN_8` (JANコード)
+        - `UPC_A`, `UPC_E`
+        - `CODE_128`, `CODE_39`
 
 ### 外部API連携
 - **Yahoo!ショッピングAPI**: JANコードから商品情報を自動取得
@@ -77,8 +80,8 @@ SPAとして実装されており、タブ切り替えで以下のViewを表示�
 ## デプロイと PWA
 - **URL**: [https://inventory-app-pwa.vercel.app](https://inventory-app-pwa.vercel.app)
 - **GitHub**: [kazukiqq/inventory-app-pwa](https://github.com/kazukiqq/inventory-app-pwa)
-- **現在のバージョン**: v1.2.9
-- **ヘッダーデザイン**: 濃い青色 (`#3b82f6`) の背景に白文字で「在庫管理」、白いバッジで「v1.2.9 最新」と表示。
+- **現在のバージョン**: v1.2.10
+- **ヘッダーデザイン**: 濃い青色 (`#3b82f6`) の背景に白文字で「在庫管理」、白いバッジで「v1.2.10 最新」と表示。
 
 ### PWA更新管理
 - **キャッシュ戦略**:
