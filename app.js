@@ -9,7 +9,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.4');
+    console.log('App version: v1.2.8');
 
     loadData();
     loadCategories();
@@ -830,7 +830,11 @@ function initScanner(targetInputId) {
     const html5QrCode = new Html5Qrcode("reader");
     html5QrcodeScanner = html5QrCode;
 
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8]
+    };
 
     html5QrCode.start({ facingMode: "environment" }, config, (decodedText, decodedResult) => {
         console.log(`Code matched = ${decodedText}`, decodedResult);
@@ -838,8 +842,16 @@ function initScanner(targetInputId) {
         const input = document.getElementById(targetInputId);
         if (input) {
             input.value = decodedText;
-            input.dispatchEvent(new Event('input'));
-            input.dispatchEvent(new Event('change'));
+
+            // Dispatch events with bubbling enabled to ensure listeners catch them
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // Explicitly trigger search if it's the search input
+            // This is a failsafe in case the event listeners don't fire or propagate as expected
+            if (targetInputId === 'search-input') {
+                performSearch(decodedText);
+            }
         }
 
         stopScanner();
