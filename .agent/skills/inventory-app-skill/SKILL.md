@@ -11,17 +11,17 @@ description: 在庫管理アプリ（PWA）の開発、メンテナンス、リ�
 アプリの変更をユーザーの端末に確実に反映させるため、**必ず以下の4箇所をセットで更新**してください。
 
 1.  **Service Worker (`sw.js`)**
-    - `CACHE_NAME` を更新する（例: `inventory-app-v13` -> `inventory-app-v14`）
+    - `CACHE_NAME` を更新する（例: `inventory-app-v14` -> `inventory-app-v15`）
     - これを行わないと、古いCSSやJSが使われ続けます。
 
 2.  **アプリロジック (`app.js`)**
     - Service Worker登録URLのクエリパラメータを更新する
-    - `const swUrl = './sw.js?build=1.2.12';`
-    - `console.log('App version: v1.2.12');` も更新する。
+    - `const swUrl = './sw.js?build=1.2.13';`
+    - `console.log('App version: v1.2.13');` も更新する。
 
 3.  **HTML表示 (`index.html`)**
     - ヘッダー部分のバージョン表記を更新する
-    - `v1.2.11` -> `v1.2.12`
+    - `v1.2.12` -> `v1.2.13`
     - ユーザーが更新成功を目視で確認するために必須です。
 
 ## 📱 UI設計思想

@@ -10,7 +10,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.12');
+    console.log('App version: v1.2.13');
 
     loadData();
     loadCategories();
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.12';
+            const swUrl = './sw.js?build=1.2.13';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('SW Registered: v1.1.3-rev3');
@@ -847,8 +847,10 @@ function initScanner(targetInputId) {
     html5QrcodeScanner = html5QrCode;
 
     const config = {
-        fps: 10,
+        fps: 15,
         qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+        useBarCodeDetectorIfSupported: true,
         formatsToSupport: [
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.EAN_8,
