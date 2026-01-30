@@ -9,7 +9,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.10');
+    console.log('App version: v1.2.11');
 
     loadData();
     loadCategories();
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.10';
+            const swUrl = './sw.js?build=1.2.11';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('SW Registered: v1.1.3-rev3');
@@ -84,12 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- Utilities ---
-function normalizeBarcode(code) {
-    if (code === null || code === undefined) return '';
-    let str = String(code).trim();
-    // Convert full-width numbers to half-width
-    str = str.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-    return str;
+function normalizeString(val) {
+    if (val === null || val === undefined) return '';
+    // Use NFKC to normalize full-width/half-width characters (e.g., Ａ->A, １->1, ｱ->ア)
+    return String(val).normalize('NFKC').trim();
 }
 
 // --- Data Management ---
@@ -494,7 +492,7 @@ function importCSV(file) {
             const name = cols[1];
             const price = parseInt(cols[2]) || 0;
             const stock = parseInt(cols[3]) || 0;
-            const barcode = normalizeBarcode(cols[4] || '');
+            const barcode = normalizeString(cols[4] || '');
             const category = cols[5] ? cols[5].trim() : '';
 
             if (!name) return;
@@ -560,7 +558,7 @@ function saveProductFromForm() {
         name: nameInput.value,
         price: parseInt(priceInput.value) || 0,
         stock: parseInt(stockInput.value) || 0,
-        barcode: normalizeBarcode(barcodeInput.value || ''),
+        barcode: normalizeString(barcodeInput.value || ''),
         category: categoryInput ? categoryInput.value : ''
     };
 
@@ -659,11 +657,15 @@ function performSearch(query) {
 
     if (!query) return;
 
-    const normalizedQ = normalizeBarcode(query).toLowerCase();
-    const hits = products.filter(p =>
-        p.name.toLowerCase().includes(normalizedQ) ||
-        (p.barcode && String(p.barcode).includes(normalizedQ))
-    );
+    // Normalize query (NFKC + lowercase)
+    const searchRef = normalizeString(query).toLowerCase();
+
+    const hits = products.filter(p => {
+        const normName = normalizeString(p.name).toLowerCase();
+        const normBarcode = normalizeString(p.barcode).toLowerCase();
+        if (normName.includes(searchRef) || normBarcode.includes(searchRef)) return true;
+        return false;
+    });
 
     if (hits.length === 0) {
         if (/^\d+$/.test(query) && query.length > 8) {
@@ -717,11 +719,14 @@ function renderInventory(filterText = '') {
     const categoryFilter = document.getElementById('inventory-category-filter');
     const selectedCategory = categoryFilter ? categoryFilter.value : '';
 
-    const normalizedFilter = normalizeBarcode(filterText).toLowerCase();
+    const searchRef = normalizeString(filterText).toLowerCase();
     const filtered = products.filter(p => {
+        const normName = normalizeString(p.name).toLowerCase();
+        const normBarcode = normalizeString(p.barcode).toLowerCase();
+
         const matchText = !filterText ||
-            p.name.toLowerCase().includes(normalizedFilter) ||
-            (p.barcode && String(p.barcode).includes(normalizedFilter));
+            normName.includes(searchRef) ||
+            normBarcode.includes(searchRef);
         const matchCategory = !selectedCategory || p.category === selectedCategory;
         return matchText && matchCategory;
     });
