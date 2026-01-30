@@ -10,7 +10,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.13');
+    console.log('App version: v1.2.14');
 
     loadData();
     loadCategories();
@@ -56,10 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.13';
+            const swUrl = './sw.js?build=1.2.14';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('SW Registered: v1.2.13');
+                    console.log('SW Registered: v1.2.14');
 
                     // Periodically check for updates
                     reg.update();
@@ -885,34 +885,41 @@ function initScanner(targetInputId) {
     })
         .then(() => {
             // --- Torch Logic ---
-            const torchBtn = document.getElementById('scanner-torch-btn');
-            // Reset button state
-            torchBtn.style.display = 'none';
-            torchBtn.textContent = '💡 ライト ON';
-            torchBtn.onclick = null;
+            // Add a small delay to ensure the video track is fully ready
+            setTimeout(() => {
+                const torchBtn = document.getElementById('scanner-torch-btn');
+                // Reset button state
+                torchBtn.style.display = 'none';
+                torchBtn.textContent = '💡 ライト ON';
+                torchBtn.onclick = null;
 
-            try {
-                const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
-                if (capabilities && capabilities.torchFeature().isSupported()) {
-                    torchBtn.style.display = 'block';
+                try {
+                    const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
+                    console.log('Camera Capabilities:', capabilities);
 
-                    let isTorchOn = false;
-                    torchBtn.onclick = () => {
-                        isTorchOn = !isTorchOn;
-                        html5QrCode.applyVideoConstraints({
-                            advanced: [{ torch: isTorchOn }]
-                        })
-                            .then(() => {
-                                torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
+                    if (capabilities && capabilities.torchFeature().isSupported()) {
+                        torchBtn.style.display = 'block';
+
+                        let isTorchOn = false;
+                        torchBtn.onclick = () => {
+                            isTorchOn = !isTorchOn;
+                            html5QrCode.applyVideoConstraints({
+                                advanced: [{ torch: isTorchOn }]
                             })
-                            .catch(err => {
-                                console.error("Failed to toggle torch", err);
-                            });
-                    };
+                                .then(() => {
+                                    torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
+                                })
+                                .catch(err => {
+                                    console.error("Failed to toggle torch", err);
+                                });
+                        };
+                    } else {
+                        console.warn("Torch feature not supported by this device/browser");
+                    }
+                } catch (e) {
+                    console.warn("Torch capability check failed", e);
                 }
-            } catch (e) {
-                console.warn("Torch capability check failed", e);
-            }
+            }, 500);
         })
         .catch(err => {
             console.error("Error starting scanner", err);
