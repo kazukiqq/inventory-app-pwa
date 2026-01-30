@@ -6,13 +6,16 @@ let categories = [];
 let html5QrcodeScanner = null;
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
+
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.11');
+    console.log('App version: v1.2.12');
 
     loadData();
     loadCategories();
+    // Default tab
+    navigateToView('view-search');
     setupNavigation();
     setupForms();
     renderInventory();
@@ -53,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.11';
+            const swUrl = './sw.js?build=1.2.12';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('SW Registered: v1.1.3-rev3');
@@ -314,15 +317,23 @@ function setupNavigation() {
 
         stX = 0; // reset
 
-        // Horizontal swipe? (Threshold: 25px)
-        if (Math.abs(dX) > 25 && Math.abs(dX) > Math.abs(dY)) {
+        // Horizontal swipe? (Threshold: 40px)
+        if (Math.abs(dX) > 40 && Math.abs(dX) > Math.abs(dY)) {
             const currentView = document.querySelector('.view.active').id;
             const currentIndex = viewIds.indexOf(currentView);
+            let targetId = null;
 
             if (dX < 0 && currentIndex < viewIds.length - 1) {
-                navigateToView(viewIds[currentIndex + 1]);
+                // Swipe Left -> Next
+                targetId = viewIds[currentIndex + 1];
             } else if (dX > 0 && currentIndex > 0) {
-                navigateToView(viewIds[currentIndex - 1]);
+                // Swipe Right -> Prev
+                targetId = viewIds[currentIndex - 1];
+            }
+
+            if (targetId) {
+                if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+                navigateToView(targetId);
             }
         }
     }, { passive: true });
