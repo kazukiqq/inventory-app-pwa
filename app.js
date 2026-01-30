@@ -10,7 +10,7 @@ const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRn
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.15');
+    console.log('App version: v1.2.16');
 
     loadData();
     loadCategories();
@@ -56,10 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.15';
+            const swUrl = './sw.js?build=1.2.16';
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('SW Registered: v1.2.15');
+                    console.log('SW Registered: v1.2.16');
 
                     // Periodically check for updates
                     reg.update();
@@ -885,50 +885,42 @@ function initScanner(targetInputId) {
     })
         .then(() => {
             // --- Torch Logic ---
-            // Add a small delay to ensure the video track is fully ready
+            // Try to show the button regardless of strict check results to allow manual trial
             setTimeout(() => {
                 const torchBtn = document.getElementById('scanner-torch-btn');
                 if (!torchBtn) return;
 
-                // Reset button state
-                torchBtn.style.display = 'none';
+                // Always display the button for now to debug
+                torchBtn.style.display = 'block';
                 torchBtn.textContent = '💡 ライト ON';
                 torchBtn.onclick = null;
 
+                let isTorchOn = false;
+
+                // Try to check capabilities just for logging
                 try {
                     const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
                     console.log('Camera Capabilities:', capabilities);
-
-                    // Check support safely
-                    const isTorchSupported = capabilities &&
-                        typeof capabilities.torchFeature === 'function' &&
-                        capabilities.torchFeature().isSupported();
-
-                    if (isTorchSupported) {
-                        torchBtn.style.display = 'block';
-                        console.log('Torch is supported, showing button.');
-
-                        let isTorchOn = false;
-                        torchBtn.onclick = () => {
-                            isTorchOn = !isTorchOn;
-                            html5QrCode.applyVideoConstraints({
-                                advanced: [{ torch: isTorchOn }]
-                            })
-                                .then(() => {
-                                    torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
-                                })
-                                .catch(err => {
-                                    console.error("Failed to toggle torch", err);
-                                    alert('ライトの切り替えに失敗しました');
-                                    isTorchOn = !isTorchOn; // Revert
-                                });
-                        };
-                    } else {
-                        console.warn("Torch feature not supported by this device/browser");
-                    }
                 } catch (e) {
-                    console.warn("Torch capability check failed", e);
+                    console.warn("Could not get capabilities:", e);
                 }
+
+                torchBtn.onclick = () => {
+                    isTorchOn = !isTorchOn;
+
+                    // Try to apply constraint
+                    html5QrCode.applyVideoConstraints({
+                        advanced: [{ torch: isTorchOn }]
+                    })
+                        .then(() => {
+                            torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
+                        })
+                        .catch(err => {
+                            console.error("Failed to toggle torch", err);
+                            alert('ライトの切り替えに失敗しました。\n端末が対応していない可能性があります。\nError: ' + err);
+                            isTorchOn = !isTorchOn; // Revert state
+                        });
+                };
             }, 1000);
         })
         .catch(err => {
