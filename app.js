@@ -4,7 +4,7 @@
 let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
-const APP_VERSION = '1.2.27';
+const APP_VERSION = '1.2.28';
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 
@@ -117,6 +117,10 @@ function barcodeEquivalent(leftBarcode, rightBarcode) {
     const leftCode = normalizeBarcode(leftBarcode);
     const rightCode = normalizeBarcode(rightBarcode);
     return Boolean(leftCode && rightCode && leftCode === rightCode);
+}
+
+function isFullBarcodeQuery(query) {
+    return /^\d{8,}$/.test(normalizeBarcode(query));
 }
 
 function normalizeText(val) {
@@ -954,11 +958,14 @@ function performSearch(query) {
     // Normalize query (NFKC + lowercase)
     const searchRef = normalizeString(query).toLowerCase();
     const barcodeRef = normalizeBarcode(query);
+    const fullBarcodeQuery = isFullBarcodeQuery(query);
 
     const hits = products.filter(p => {
+        const barcodeHit = barcodeMatches(p.barcode, barcodeRef);
+        if (fullBarcodeQuery) return barcodeHit;
+
         const normName = normalizeString(p.name).toLowerCase();
-        if (normName.includes(searchRef) || barcodeMatches(p.barcode, barcodeRef)) return true;
-        return false;
+        return normName.includes(searchRef) || barcodeHit;
     });
 
     if (hits.length === 0) {
@@ -1016,12 +1023,19 @@ function renderInventory(filterText = '') {
 
     const searchRef = normalizeString(filterText).toLowerCase();
     const barcodeRef = normalizeBarcode(filterText);
+    const fullBarcodeQuery = isFullBarcodeQuery(filterText);
     const filtered = products.filter(p => {
-        const normName = normalizeString(p.name).toLowerCase();
+        const barcodeHit = barcodeMatches(p.barcode, barcodeRef);
 
-        const matchText = !filterText ||
-            normName.includes(searchRef) ||
-            barcodeMatches(p.barcode, barcodeRef);
+        let matchText = true;
+        if (filterText) {
+            if (fullBarcodeQuery) {
+                matchText = barcodeHit;
+            } else {
+                const normName = normalizeString(p.name).toLowerCase();
+                matchText = normName.includes(searchRef) || barcodeHit;
+            }
+        }
         const matchCategory = !selectedCategory || p.category === selectedCategory;
         return matchText && matchCategory;
     });
