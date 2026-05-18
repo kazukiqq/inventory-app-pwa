@@ -5,7 +5,7 @@ let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
 let scannerStopPromise = null;
-const APP_VERSION = '1.2.33';
+const APP_VERSION = '1.2.34';
 const SCAN_CONFIRM_REQUIRED = 2;
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
@@ -156,13 +156,48 @@ function isValidScannedBarcodeCandidate(code) {
 }
 
 function getScannerQrbox(viewfinderWidth, viewfinderHeight) {
-    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-    const size = Math.floor(Math.min(Math.max(240, minEdge * 0.9), 420));
-    return { width: size, height: size };
+    const padding = 16;
+    const maxWidth = Math.max(260, viewfinderWidth - padding);
+    const maxHeight = Math.max(220, viewfinderHeight - padding);
+    const width = Math.floor(Math.min(maxWidth, viewfinderWidth * 0.96));
+    const height = Math.floor(Math.min(maxHeight, viewfinderHeight * 0.84));
+    return { width, height };
 }
 
 function getScannerAspectRatio() {
     return window.innerWidth > window.innerHeight ? 16 / 9 : 3 / 4;
+}
+
+function getScannerCameraConfig() {
+    return {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+    };
+}
+
+async function widenScannerCameraView(html5QrCode) {
+    try {
+        const constraints = {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            advanced: []
+        };
+        const capabilities = html5QrCode.getRunningTrackCameraCapabilities?.();
+        const zoom = capabilities && capabilities.zoom;
+
+        if (zoom && typeof zoom.min === 'number') {
+            constraints.advanced.push({ zoom: zoom.min });
+        }
+
+        if (!constraints.advanced.length) {
+            delete constraints.advanced;
+        }
+
+        await html5QrCode.applyVideoConstraints(constraints);
+    } catch (err) {
+        console.warn("Could not widen camera view", err);
+    }
 }
 
 function normalizeText(val) {
@@ -1237,7 +1272,7 @@ function initScanner(targetInputId) {
     html5QrcodeScanner = html5QrCode;
     let scanCompleted = false;
     const scanState = { code: '', count: 0 };
-    setScannerStatus('縦向き・横向きどちらでも、バーコード全体を中央に入れてください');
+    setScannerStatus('広めの読み取り範囲に、バーコード全体を入れてください');
 
     const config = {
         fps: 15,
@@ -1255,7 +1290,7 @@ function initScanner(targetInputId) {
         ]
     };
 
-    html5QrCode.start({ facingMode: "environment" }, config, (decodedText, decodedResult) => {
+    html5QrCode.start(getScannerCameraConfig(), config, (decodedText, decodedResult) => {
         if (scanCompleted) return;
         console.log(`Code matched = ${decodedText}`, decodedResult);
         const scannedCode = confirmScanCandidate(scanState, decodedText);
@@ -1282,6 +1317,8 @@ function initScanner(targetInputId) {
         // parse error, ignore it.
     })
         .then(() => {
+            widenScannerCameraView(html5QrCode);
+
             // --- Torch Logic ---
             // Try to show the button regardless of strict check results to allow manual trial
             setTimeout(() => {

@@ -375,35 +375,46 @@ button {
     left: 0;
     width: 100%;
     height: 100%;
+    min-height: 100dvh;
     background-color: rgba(0, 0, 0, 0.9);
     z-index: 9999 !important;
     display: flex;
     justify-content: center;
     align-items: center;
     flex-direction: column;
+    padding: 0.75rem;
 }
 
 .scanner-content {
     background: var(--surface-color);
-    padding: 1rem;
+    padding: 0.75rem;
     border-radius: var(--radius);
-    width: min(94vw, 520px);
-    max-height: 92vh;
+    width: min(98vw, 860px);
+    max-height: calc(100dvh - 1.5rem);
     box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
 }
 
 .scanner-reader-frame {
     position: relative;
+    min-height: 0;
 }
 
 #reader {
     width: 100%;
-    min-height: min(68vh, 420px);
-    /* Force height */
+    height: clamp(360px, 74dvh, 680px);
     background-color: #000;
-    /* Visual feedback */
     border-radius: 0.5rem;
     overflow: hidden;
+}
+
+#reader video,
+#reader canvas {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
 }
 
 .scan-guide {
@@ -418,13 +429,13 @@ button {
 }
 
 .scan-guide-horizontal {
-    width: min(72vw, 340px);
-    height: 82px;
+    width: min(92%, 680px);
+    height: clamp(110px, 24%, 180px);
 }
 
 .scan-guide-vertical {
-    width: 82px;
-    height: min(54vh, 340px);
+    width: clamp(110px, 26%, 180px);
+    height: min(78%, 520px);
 }
 
 .scanner-status {
@@ -448,6 +459,45 @@ button {
     background: #fef3c7;
     border-color: #fbbf24;
     color: #92400e;
+}
+
+@media (max-width: 520px) {
+    .scanner-modal {
+        align-items: stretch;
+        padding: 0.5rem;
+    }
+
+    .scanner-content {
+        width: 100%;
+        max-height: calc(100dvh - 1rem);
+        border-radius: 0.6rem;
+    }
+
+    #reader {
+        height: min(78dvh, calc(100dvh - 11.5rem));
+        min-height: 380px;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+    .scanner-modal {
+        padding: 0.4rem;
+    }
+
+    .scanner-content {
+        width: min(98vw, 920px);
+        max-height: calc(100dvh - 0.8rem);
+    }
+
+    #reader {
+        height: min(66dvh, 420px);
+        min-height: 240px;
+    }
+
+    .scanner-status {
+        margin-top: 0.5rem;
+        padding: 0.5rem 0.65rem;
+    }
 }
 
 /* Category Styles */
