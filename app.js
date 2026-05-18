@@ -4,7 +4,7 @@
 let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
-const APP_VERSION = '1.2.23';
+const APP_VERSION = '1.2.26';
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 
@@ -94,6 +94,43 @@ function normalizeString(val) {
     return String(val).normalize('NFKC').trim();
 }
 
+function normalizeBarcode(val) {
+    return normalizeString(val).replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+}
+
+function getBarcodeSearchKeys(val) {
+    const raw = normalizeBarcode(val);
+    if (!raw) return [];
+
+    const keys = new Set([raw]);
+    if (/^\d+$/.test(raw)) {
+        const withoutLeadingZeros = raw.replace(/^0+/, '');
+        if (withoutLeadingZeros) keys.add(withoutLeadingZeros);
+        if (raw.length === 13 && raw.startsWith('0')) keys.add(raw.slice(1));
+        if (raw.length === 12) keys.add(`0${raw}`);
+    }
+
+    return Array.from(keys);
+}
+
+function barcodeMatches(productBarcode, queryBarcode) {
+    const productKeys = getBarcodeSearchKeys(productBarcode);
+    const queryKeys = getBarcodeSearchKeys(queryBarcode);
+    if (!productKeys.length || !queryKeys.length) return false;
+
+    return productKeys.some(productKey => queryKeys.some(queryKey => {
+        if (productKey === queryKey) return true;
+        return productKey.includes(queryKey) || queryKey.includes(productKey);
+    }));
+}
+
+function barcodeEquivalent(leftBarcode, rightBarcode) {
+    const leftKeys = getBarcodeSearchKeys(leftBarcode);
+    const rightKeys = getBarcodeSearchKeys(rightBarcode);
+    if (!leftKeys.length || !rightKeys.length) return false;
+    return leftKeys.some(leftKey => rightKeys.includes(leftKey));
+}
+
 function normalizeText(val) {
     if (val === null || val === undefined) return '';
     return String(val).trim();
@@ -123,7 +160,7 @@ function normalizeProduct(raw, fallbackId = Date.now()) {
         name: normalizeText(raw && raw.name),
         price: Math.max(0, Math.trunc(parseNumberInput(raw && raw.price))),
         stock: Math.max(0, Math.trunc(parseNumberInput(raw && raw.stock))),
-        barcode: normalizeString(raw && raw.barcode),
+        barcode: normalizeBarcode(raw && raw.barcode),
         category: normalizeText(raw && raw.category)
     };
 }
@@ -152,6 +189,61 @@ function saveJson(key, value, label) {
         alert(`${label}の保存に失敗しました。端末の空き容量またはブラウザの保存容量を確認してください。`);
         return false;
     }
+}
+
+function saveTextSetting(key, value, label) {
+    try {
+        localStorage.setItem(key, value);
+        return true;
+    } catch (error) {
+        console.error(`${label} save failed`, error);
+        alert(`${label}の保存に失敗しました。端末の保存容量を確認してください。`);
+        return false;
+    }
+}
+
+function normalizeCategoriesFromProducts(productList) {
+    const seen = new Set();
+    const result = [];
+
+    productList.forEach(product => {
+        const category = normalizeText(product && product.category);
+        if (!category || seen.has(category)) return;
+        seen.add(category);
+        result.push(category);
+    });
+
+    return result;
+}
+
+function mergeCategories(primaryCategories, productList) {
+    const seen = new Set();
+    const result = [];
+
+    [...primaryCategories, ...normalizeCategoriesFromProducts(productList)].forEach(category => {
+        const normalized = normalizeText(category);
+        if (!normalized || seen.has(normalized)) return;
+        seen.add(normalized);
+        result.push(normalized);
+    });
+
+    return result;
+}
+
+function getSavedGasUrl() {
+    return localStorage.getItem('inventory_app_gas_url') || DEFAULT_GAS_URL;
+}
+
+function getCurrentGasUrl() {
+    const gasUrlInput = document.getElementById('gas-app-url');
+    const currentValue = gasUrlInput ? normalizeText(gasUrlInput.value) : '';
+    const url = currentValue || getSavedGasUrl();
+
+    if (gasUrlInput && gasUrlInput.value !== url) {
+        gasUrlInput.value = url;
+    }
+    saveTextSetting('inventory_app_gas_url', url, 'GAS URL');
+    return url;
 }
 
 function getStockLogs() {
@@ -482,6 +574,11 @@ function setupForms() {
         saveProductFromForm();
     });
 
+    const cancelEditBtn = document.getElementById('cancel-edit');
+    if (cancelEditBtn) {
+        cancelEditBtn.addEventListener('click', () => resetProductForm());
+    }
+
     // Settings Form
     const settingsForm = document.getElementById('settings-form');
     settingsForm.addEventListener('submit', (e) => {
@@ -511,7 +608,8 @@ function setupForms() {
     // Barcode Input Logic for Master Form
     const barcodeInput = document.getElementById('prod-barcode');
     barcodeInput.addEventListener('change', async (e) => {
-        const code = e.target.value;
+        const code = normalizeBarcode(e.target.value);
+        e.target.value = code;
         const kokuyoBtn = document.getElementById('kokuyo-search-btn');
         const crownBtn = document.getElementById('crown-search-btn');
         const amazonBtn = document.getElementById('amazon-search-btn');
@@ -558,9 +656,12 @@ function setupForms() {
 
     // GAS Settings & Sync
     const gasUrlInput = document.getElementById('gas-app-url');
-    gasUrlInput.value = localStorage.getItem('inventory_app_gas_url') || DEFAULT_GAS_URL;
+    gasUrlInput.value = getSavedGasUrl();
+    gasUrlInput.addEventListener('input', (e) => {
+        saveTextSetting('inventory_app_gas_url', normalizeText(e.target.value), 'GAS URL');
+    });
     gasUrlInput.addEventListener('change', (e) => {
-        localStorage.setItem('inventory_app_gas_url', e.target.value.trim());
+        saveTextSetting('inventory_app_gas_url', normalizeText(e.target.value), 'GAS URL');
     });
 
     document.getElementById('gas-download-btn').addEventListener('click', downloadFromGas);
@@ -627,7 +728,7 @@ function importCSV(file) {
             const name = normalizeText(cols[1]);
             const price = Math.max(0, Math.trunc(parseNumberInput(cols[2])));
             const stock = Math.max(0, Math.trunc(parseNumberInput(cols[3])));
-            const barcode = normalizeString(cols[4] || '');
+            const barcode = normalizeBarcode(cols[4] || '');
             const category = normalizeText(cols[5]);
 
             if (!name) {
@@ -691,6 +792,7 @@ function saveProductFromForm() {
     const barcodeInput = document.getElementById('prod-barcode');
     const categoryInput = document.getElementById('prod-category');
     const name = normalizeText(nameInput.value);
+    const isEditing = Boolean(idInput.value);
 
     if (!name) {
         alert('商品名を入力してください');
@@ -703,9 +805,18 @@ function saveProductFromForm() {
         name: name,
         price: Math.max(0, Math.trunc(parseNumberInput(priceInput.value))),
         stock: Math.max(0, Math.trunc(parseNumberInput(stockInput.value))),
-        barcode: normalizeString(barcodeInput.value || ''),
+        barcode: normalizeBarcode(barcodeInput.value || ''),
         category: categoryInput ? normalizeText(categoryInput.value) : ''
     };
+    const duplicateBarcodeProduct = product.barcode
+        ? products.find(p => p.id !== product.id && barcodeEquivalent(p.barcode, product.barcode))
+        : null;
+
+    if (duplicateBarcodeProduct) {
+        alert(`同じバーコードの商品が既に登録されています。\n登録済み: ${duplicateBarcodeProduct.name}`);
+        barcodeInput.focus();
+        return;
+    }
 
     if (idInput.value) {
         const index = products.findIndex(p => p.id === product.id);
@@ -718,19 +829,68 @@ function saveProductFromForm() {
 
     if (!saveData()) return;
 
-    document.getElementById('product-form').reset();
+    resetProductForm();
+    alert(isEditing ? '更新しました' : '保存しました');
+    renderMasterList();
+}
+
+function resetProductForm() {
+    const form = document.getElementById('product-form');
+    const title = document.getElementById('product-form-title');
+    const saveBtn = document.getElementById('product-save-btn');
+    const cancelBtn = document.getElementById('cancel-edit');
+    const notice = document.getElementById('edit-mode-notice');
+    const noticeName = document.getElementById('edit-mode-name');
+    const card = document.getElementById('product-form-card');
+
+    if (form) form.reset();
     document.getElementById('prod-id').value = '';
     document.getElementById('kokuyo-search-btn').style.display = 'none';
     document.getElementById('crown-search-btn').style.display = 'none';
     document.getElementById('amazon-search-btn').style.display = 'none';
-    alert('保存しました');
-    renderMasterList();
+
+    if (title) title.textContent = '商品登録';
+    if (saveBtn) saveBtn.textContent = '保存';
+    if (cancelBtn) cancelBtn.hidden = true;
+    if (notice) notice.hidden = true;
+    if (noticeName) noticeName.textContent = '';
+    if (card) card.classList.remove('is-editing', 'is-editing-flash');
+}
+
+function setProductFormEditing(product) {
+    const title = document.getElementById('product-form-title');
+    const saveBtn = document.getElementById('product-save-btn');
+    const cancelBtn = document.getElementById('cancel-edit');
+    const notice = document.getElementById('edit-mode-notice');
+    const noticeName = document.getElementById('edit-mode-name');
+    const card = document.getElementById('product-form-card');
+
+    if (title) title.textContent = '商品を編集中';
+    if (saveBtn) saveBtn.textContent = '更新';
+    if (cancelBtn) cancelBtn.hidden = false;
+    if (notice) notice.hidden = false;
+    if (noticeName) noticeName.textContent = product.name || '名称未設定';
+
+    if (card) {
+        card.classList.add('is-editing');
+        card.classList.remove('is-editing-flash');
+        requestAnimationFrame(() => card.classList.add('is-editing-flash'));
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    const nameInput = document.getElementById('prod-name');
+    if (nameInput) {
+        setTimeout(() => nameInput.focus({ preventScroll: true }), 350);
+    }
 }
 
 function deleteProduct(id) {
     if (confirm('本当に削除しますか？')) {
         products = products.filter(p => p.id !== id);
         saveData();
+        if (Number(document.getElementById('prod-id').value) === id) {
+            resetProductForm();
+        }
         renderMasterList();
     }
 }
@@ -771,7 +931,7 @@ function editProduct(id) {
         amazonBtn.style.display = 'none';
     }
 
-    document.getElementById('main-content').scrollTop = 0;
+    setProductFormEditing(p);
 }
 
 function renderMasterList() {
@@ -805,17 +965,17 @@ function performSearch(query) {
 
     // Normalize query (NFKC + lowercase)
     const searchRef = normalizeString(query).toLowerCase();
+    const barcodeRef = normalizeBarcode(query);
 
     const hits = products.filter(p => {
         const normName = normalizeString(p.name).toLowerCase();
-        const normBarcode = normalizeString(p.barcode).toLowerCase();
-        if (normName.includes(searchRef) || normBarcode.includes(searchRef)) return true;
+        if (normName.includes(searchRef) || barcodeMatches(p.barcode, barcodeRef)) return true;
         return false;
     });
 
     if (hits.length === 0) {
-        if (/^\d+$/.test(query) && query.length > 8) {
-            const encodedQuery = encodeURIComponent(query);
+        if (/^\d+$/.test(barcodeRef) && barcodeRef.length > 8) {
+            const encodedQuery = encodeURIComponent(barcodeRef);
             container.innerHTML = `
                 <div style="text-align:center; padding: 1rem;">
                     <p style="color: var(--secondary-color); margin-bottom: 1rem;">アプリ内に見つかりませんでした</p>
@@ -867,13 +1027,13 @@ function renderInventory(filterText = '') {
     const selectedCategory = categoryFilter ? categoryFilter.value : '';
 
     const searchRef = normalizeString(filterText).toLowerCase();
+    const barcodeRef = normalizeBarcode(filterText);
     const filtered = products.filter(p => {
         const normName = normalizeString(p.name).toLowerCase();
-        const normBarcode = normalizeString(p.barcode).toLowerCase();
 
         const matchText = !filterText ||
             normName.includes(searchRef) ||
-            normBarcode.includes(searchRef);
+            barcodeMatches(p.barcode, barcodeRef);
         const matchCategory = !selectedCategory || p.category === selectedCategory;
         return matchText && matchCategory;
     });
@@ -960,8 +1120,8 @@ function updateStockFromSearch(id, delta) {
 
 // Edit product from search results
 function editProductFromSearch(id) {
-    editProduct(id);
     navigateToView('view-master');
+    requestAnimationFrame(() => editProduct(id));
 }
 
 // --- Barcode Scanner ---
@@ -1008,7 +1168,8 @@ function initScanner(targetInputId) {
 
         const input = document.getElementById(targetInputId);
         if (input) {
-            input.value = decodedText;
+            const scannedCode = normalizeBarcode(decodedText) || normalizeString(decodedText);
+            input.value = scannedCode;
 
             // Dispatch events with bubbling enabled to ensure listeners catch them
             input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1017,7 +1178,7 @@ function initScanner(targetInputId) {
             // Explicitly trigger search if it's the search input
             // This is a failsafe in case the event listeners don't fire or propagate as expected
             if (targetInputId === 'search-input') {
-                performSearch(decodedText);
+                performSearch(scannedCode);
             }
         }
 
@@ -1171,7 +1332,7 @@ function submitGasFormFallback(url, payload) {
 }
 
 async function downloadFromGas() {
-    const url = localStorage.getItem('inventory_app_gas_url') || DEFAULT_GAS_URL;
+    const url = getCurrentGasUrl();
     if (!url) return alert('GAS Webアプリ URLを設定してください');
 
     if (!confirm('クラウドからデータを読み込みますか？\n端末内のデータは上書きされます。')) return;
@@ -1192,9 +1353,15 @@ async function downloadFromGas() {
         if (Array.isArray(productData)) {
             products = productData.map((p, index) => normalizeProduct(p, Date.now() + index)).filter(p => p.name);
             if (!saveData()) return;
+
+            categories = mergeCategories(Array.isArray(data.categories) ? data.categories : [], products);
+            if (!saveCategories()) return;
+
+            renderCategoryList();
+            renderCategoryDropdowns();
             renderMasterList();
             renderInventory();
-            alert(`読み込み完了: ${products.length}件`);
+            alert(`読み込み完了:\n商品: ${products.length}件\nカテゴリ: ${categories.length}件`);
         } else {
             alert('データ形式が不正です');
         }
@@ -1208,7 +1375,7 @@ async function downloadFromGas() {
 }
 
 async function uploadToGas() {
-    const url = localStorage.getItem('inventory_app_gas_url') || DEFAULT_GAS_URL;
+    const url = getCurrentGasUrl();
     if (!url) return alert('GAS Webアプリ URLを設定してください');
 
     if (!confirm('クラウドへデータを保存（上書き）しますか？')) return;
@@ -1222,6 +1389,7 @@ async function uploadToGas() {
         const logs = getStockLogs();
         const payload = {
             products: products,
+            categories: categories,
             logs: logs
         };
         const body = new URLSearchParams();

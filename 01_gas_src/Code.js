@@ -3,7 +3,7 @@ function doGet(e) {
     const data = sheet.getDataRange().getValues();
 
     if (data.length <= 1) {
-        return createResponse([]);
+        return createResponse({ products: [], categories: readCategories() });
     }
 
     // Header: ID, Name, Price, Stock, Barcode
@@ -22,7 +22,10 @@ function doGet(e) {
         });
     }
 
-    return createResponse(products);
+    return createResponse({
+        products: products,
+        categories: readCategories()
+    });
 }
 
 function doPost(e) {
@@ -57,11 +60,21 @@ function doPost(e) {
         } else {
             productList = [];
         }
+        const categoryList = Array.isArray(payload.categories)
+            ? payload.categories
+            : extractCategoriesFromProducts(productList);
 
         if (productList.length === 0) {
             sheet.appendRow(headers);
+            writeCategories(categoryList);
             const logCount = appendLogs(payload.logs);
-            return createResponse({ status: "success", count: 0, logCount: logCount, message: "Cleared all data" });
+            return createResponse({
+                status: "success",
+                count: 0,
+                categoryCount: categoryList.length,
+                logCount: logCount,
+                message: "Cleared all data"
+            });
         }
 
         // Prepare Data
@@ -79,13 +92,60 @@ function doPost(e) {
 
         // Bulk write
         sheet.getRange(1, 1, rows.length, headers.length).setValues(rows);
+        writeCategories(categoryList);
         const logCount = appendLogs(payload.logs);
 
-        return createResponse({ status: "success", count: productList.length, logCount: logCount });
+        return createResponse({
+            status: "success",
+            count: productList.length,
+            categoryCount: categoryList.length,
+            logCount: logCount
+        });
 
     } catch (error) {
         return createResponse({ status: "error", message: error.toString() });
     }
+}
+
+function extractCategoriesFromProducts(products) {
+    const seen = {};
+    const categories = [];
+
+    products.forEach(p => {
+        const category = String((p && p.category) || "").trim();
+        if (!category || seen[category]) return;
+        seen[category] = true;
+        categories.push(category);
+    });
+
+    return categories;
+}
+
+function readCategories() {
+    const sheet = getCategorySheet(false);
+    if (!sheet || sheet.getLastRow() === 0) return [];
+
+    const values = sheet.getDataRange().getValues();
+    const categories = [];
+    for (let i = 1; i < values.length; i++) {
+        const category = String(values[i][0] || "").trim();
+        if (category) categories.push(category);
+    }
+    return categories;
+}
+
+function writeCategories(categories) {
+    const sheet = getCategorySheet(true);
+    const headers = ["カテゴリ"];
+    const rows = [headers];
+
+    categories.forEach(category => {
+        const normalized = String(category || "").trim();
+        if (normalized) rows.push([normalized]);
+    });
+
+    sheet.clearContents();
+    sheet.getRange(1, 1, rows.length, headers.length).setValues(rows);
 }
 
 function appendLogs(logs) {
@@ -112,8 +172,14 @@ function appendLogs(logs) {
 function getProductSheet() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     return ss.getSheetByName("商品") ||
-        ss.getSheets().find(sheet => sheet.getName() !== "ログ") ||
+        ss.getSheets().find(sheet => sheet.getName() !== "ログ" && sheet.getName() !== "カテゴリ") ||
         ss.getActiveSheet();
+}
+
+function getCategorySheet(shouldCreate) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetName = "カテゴリ";
+    return ss.getSheetByName(sheetName) || (shouldCreate ? ss.insertSheet(sheetName) : null);
 }
 
 function getLogSheet() {

@@ -18,7 +18,7 @@
             style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000;">
             <h1 style="margin: 0; color: white; font-size: 1.2rem;">在庫管理</h1>
             <span class="version-badge"
-                style="font-size: 0.75rem; font-weight: bold; color: #1e3a8a; background: rgba(255,255,255,0.9); padding: 3px 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">v1.2.23</span>
+                style="font-size: 0.75rem; font-weight: bold; color: #1e3a8a; background: rgba(255,255,255,0.9); padding: 3px 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">v1.2.26</span>
         </header>
 
         <main id="main-content">
@@ -53,8 +53,12 @@
 
             <!-- Master Data View -->
             <div id="view-master" class="view">
-                <div class="card">
-                    <h2>商品登録</h2>
+                <div id="product-form-card" class="card product-form-card">
+                    <h2 id="product-form-title">商品登録</h2>
+                    <div id="edit-mode-notice" class="edit-mode-notice" hidden>
+                        <span class="edit-mode-label">編集中</span>
+                        <span id="edit-mode-name" class="edit-mode-name"></span>
+                    </div>
                     <form id="product-form">
                         <div class="form-group">
                             <label for="prod-barcode">バーコード</label>
@@ -91,10 +95,11 @@
                                 <option value="">-- 選択 --</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn-primary">保存</button>
+                        <div class="form-actions">
+                            <button type="submit" id="product-save-btn" class="btn-primary">保存</button>
+                            <button type="button" id="cancel-edit" class="btn-secondary" hidden>キャンセル</button>
+                        </div>
                         <input type="hidden" id="prod-id"> <!-- For editing -->
-                        <button type="button" id="cancel-edit" style="display:none;"
-                            class="btn-secondary">キャンセル</button>
                     </form>
                 </div>
                 <div class="card mt-2">

@@ -108,6 +108,77 @@ main {
     margin-bottom: var(--spacing);
 }
 
+.product-form-card {
+    border: 2px solid transparent;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.product-form-card.is-editing {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12), var(--shadow);
+}
+
+.product-form-card.is-editing-flash {
+    animation: editFlash 0.9s ease;
+}
+
+@keyframes editFlash {
+    0% {
+        background-color: #eff6ff;
+    }
+
+    100% {
+        background-color: var(--surface-color);
+    }
+}
+
+.edit-mode-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.75rem 0 1rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e3a8a;
+}
+
+.edit-mode-notice[hidden] {
+    display: none;
+}
+
+.edit-mode-label {
+    flex-shrink: 0;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.edit-mode-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-weight: 700;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: stretch;
+}
+
+.form-actions .btn-primary {
+    flex: 1;
+}
+
+.form-actions .btn-secondary {
+    flex: 0 0 auto;
+    min-width: 7rem;
+}
+
 .mt-2 {
     margin-top: 1rem;
 }
