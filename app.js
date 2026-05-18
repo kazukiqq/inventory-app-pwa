@@ -4,7 +4,7 @@
 let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
-const APP_VERSION = '1.2.26';
+const APP_VERSION = '1.2.27';
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 
@@ -95,40 +95,28 @@ function normalizeString(val) {
 }
 
 function normalizeBarcode(val) {
-    return normalizeString(val).replace(/[^0-9A-Za-z]/g, '').toUpperCase();
-}
-
-function getBarcodeSearchKeys(val) {
-    const raw = normalizeBarcode(val);
-    if (!raw) return [];
-
-    const keys = new Set([raw]);
-    if (/^\d+$/.test(raw)) {
-        const withoutLeadingZeros = raw.replace(/^0+/, '');
-        if (withoutLeadingZeros) keys.add(withoutLeadingZeros);
-        if (raw.length === 13 && raw.startsWith('0')) keys.add(raw.slice(1));
-        if (raw.length === 12) keys.add(`0${raw}`);
+    const raw = normalizeString(val).replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+    if (/^\d{13}$/.test(raw) && raw.startsWith('0')) {
+        return raw.slice(1);
     }
-
-    return Array.from(keys);
+    return raw;
 }
 
 function barcodeMatches(productBarcode, queryBarcode) {
-    const productKeys = getBarcodeSearchKeys(productBarcode);
-    const queryKeys = getBarcodeSearchKeys(queryBarcode);
-    if (!productKeys.length || !queryKeys.length) return false;
+    const productCode = normalizeBarcode(productBarcode);
+    const queryCode = normalizeBarcode(queryBarcode);
+    if (!productCode || !queryCode) return false;
+    if (productCode === queryCode) return true;
 
-    return productKeys.some(productKey => queryKeys.some(queryKey => {
-        if (productKey === queryKey) return true;
-        return productKey.includes(queryKey) || queryKey.includes(productKey);
-    }));
+    // Manual short searches can still narrow by barcode prefix/part.
+    // Full barcode reads must be exact after UPC-A/EAN-13 normalization.
+    return queryCode.length < 8 && productCode.includes(queryCode);
 }
 
 function barcodeEquivalent(leftBarcode, rightBarcode) {
-    const leftKeys = getBarcodeSearchKeys(leftBarcode);
-    const rightKeys = getBarcodeSearchKeys(rightBarcode);
-    if (!leftKeys.length || !rightKeys.length) return false;
-    return leftKeys.some(leftKey => rightKeys.includes(leftKey));
+    const leftCode = normalizeBarcode(leftBarcode);
+    const rightCode = normalizeBarcode(rightBarcode);
+    return Boolean(leftCode && rightCode && leftCode === rightCode);
 }
 
 function normalizeText(val) {
