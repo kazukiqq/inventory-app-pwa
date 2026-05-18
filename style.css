@@ -402,6 +402,29 @@ button {
     overflow: hidden;
 }
 
+.scanner-status {
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.5rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e3a8a;
+    font-weight: 700;
+    text-align: center;
+}
+
+.scanner-status[data-level="success"] {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+.scanner-status[data-level="warn"] {
+    background: #fef3c7;
+    border-color: #fbbf24;
+    color: #92400e;
+}
+
 /* Category Styles */
 .category-badge {
     display: inline-block;

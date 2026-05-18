@@ -5,7 +5,8 @@ let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
 let scannerStopPromise = null;
-const APP_VERSION = '1.2.31';
+const APP_VERSION = '1.2.32';
+const SCAN_CONFIRM_REQUIRED = 2;
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 
@@ -122,6 +123,36 @@ function isFullBarcodeQuery(query) {
 
 function normalizeScannedCode(val) {
     return normalizeBarcode(val) || normalizeString(val);
+}
+
+function isGtinLength(code) {
+    return [8, 12, 13, 14].includes(code.length);
+}
+
+function hasValidGtinCheckDigit(code) {
+    if (!/^\d+$/.test(code) || !isGtinLength(code)) return false;
+
+    const digits = code.split('').map(Number);
+    const checkDigit = digits.pop();
+    let sum = 0;
+    let weight = 3;
+
+    for (let i = digits.length - 1; i >= 0; i--) {
+        sum += digits[i] * weight;
+        weight = weight === 3 ? 1 : 3;
+    }
+
+    return (10 - (sum % 10)) % 10 === checkDigit;
+}
+
+function isValidScannedBarcodeCandidate(code) {
+    if (!code) return false;
+
+    if (/^\d+$/.test(code) && isGtinLength(code)) {
+        return hasValidGtinCheckDigit(code);
+    }
+
+    return true;
 }
 
 function normalizeText(val) {
@@ -970,6 +1001,40 @@ function updateSearchFromScan(scannedCode) {
     updateSearchInput(scannedCode);
 }
 
+function setScannerStatus(message, level = 'info') {
+    const status = document.getElementById('scanner-status');
+    if (!status) return;
+
+    status.textContent = message;
+    status.dataset.level = level;
+}
+
+function confirmScanCandidate(scanState, decodedText) {
+    const scannedCode = normalizeScannedCode(decodedText);
+
+    if (!isValidScannedBarcodeCandidate(scannedCode)) {
+        scanState.code = '';
+        scanState.count = 0;
+        setScannerStatus('読み取り値を確認できません。もう一度かざしてください。', 'warn');
+        return '';
+    }
+
+    if (scanState.code === scannedCode) {
+        scanState.count += 1;
+    } else {
+        scanState.code = scannedCode;
+        scanState.count = 1;
+    }
+
+    if (scanState.count < SCAN_CONFIRM_REQUIRED) {
+        setScannerStatus(`${scannedCode} を確認中 ${scanState.count}/${SCAN_CONFIRM_REQUIRED}`, 'info');
+        return '';
+    }
+
+    setScannerStatus(`${scannedCode} を読み取りました`, 'success');
+    return scannedCode;
+}
+
 function performSearch(query) {
     const container = document.getElementById('search-results');
     container.innerHTML = '';
@@ -1161,6 +1226,8 @@ function initScanner(targetInputId) {
     const html5QrCode = new Html5Qrcode("reader");
     html5QrcodeScanner = html5QrCode;
     let scanCompleted = false;
+    const scanState = { code: '', count: 0 };
+    setScannerStatus('バーコードを枠内に入れてください');
 
     const config = {
         fps: 15,
@@ -1171,20 +1238,19 @@ function initScanner(targetInputId) {
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.EAN_8,
             Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39
+            Html5QrcodeSupportedFormats.UPC_E
         ]
     };
 
     html5QrCode.start({ facingMode: "environment" }, config, (decodedText, decodedResult) => {
         if (scanCompleted) return;
-        scanCompleted = true;
         console.log(`Code matched = ${decodedText}`, decodedResult);
+        const scannedCode = confirmScanCandidate(scanState, decodedText);
+        if (!scannedCode) return;
 
         const input = document.getElementById(targetInputId);
         if (input) {
-            const scannedCode = normalizeScannedCode(decodedText);
+            scanCompleted = true;
             input.value = scannedCode;
 
             // Dispatch events with bubbling enabled to ensure listeners catch them
@@ -1276,6 +1342,7 @@ function initScanner(targetInputId) {
         })
         .catch(err => {
             console.error("Error starting scanner", err);
+            setScannerStatus('カメラの起動に失敗しました。', 'warn');
             alert('カメラの起動に失敗しました。権限を確認してください。');
             setScannerModalVisible(false); // Hide on error
             html5QrcodeScanner = null;
