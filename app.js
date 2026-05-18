@@ -5,7 +5,7 @@ let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
 let scannerStopPromise = null;
-const APP_VERSION = '1.2.34';
+const APP_VERSION = '1.2.35';
 const SCAN_CONFIRM_REQUIRED = 2;
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
@@ -169,32 +169,21 @@ function getScannerAspectRatio() {
 }
 
 function getScannerCameraConfig() {
-    return {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-    };
+    return { facingMode: "environment" };
 }
 
 async function widenScannerCameraView(html5QrCode) {
     try {
-        const constraints = {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            advanced: []
-        };
         const capabilities = html5QrCode.getRunningTrackCameraCapabilities?.();
         const zoom = capabilities && capabilities.zoom;
 
-        if (zoom && typeof zoom.min === 'number') {
-            constraints.advanced.push({ zoom: zoom.min });
+        if (!zoom || typeof zoom.min !== 'number') {
+            return;
         }
 
-        if (!constraints.advanced.length) {
-            delete constraints.advanced;
-        }
-
-        await html5QrCode.applyVideoConstraints(constraints);
+        await html5QrCode.applyVideoConstraints({
+            advanced: [{ zoom: zoom.min }]
+        });
     } catch (err) {
         console.warn("Could not widen camera view", err);
     }
