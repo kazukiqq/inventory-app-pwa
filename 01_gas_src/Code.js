@@ -1,5 +1,5 @@
 function doGet(e) {
-    const sheet = getSheet();
+    const sheet = getProductSheet();
     const data = sheet.getDataRange().getValues();
 
     if (data.length <= 1) {
@@ -38,7 +38,7 @@ function doPost(e) {
             throw new Error("No data found");
         }
 
-        const sheet = getSheet();
+        const sheet = getProductSheet();
 
         // Clear existing data
         sheet.clearContents();
@@ -60,7 +60,8 @@ function doPost(e) {
 
         if (productList.length === 0) {
             sheet.appendRow(headers);
-            return createResponse({ status: "success", message: "Cleared all data" });
+            const logCount = appendLogs(payload.logs);
+            return createResponse({ status: "success", count: 0, logCount: logCount, message: "Cleared all data" });
         }
 
         // Prepare Data
@@ -78,16 +79,47 @@ function doPost(e) {
 
         // Bulk write
         sheet.getRange(1, 1, rows.length, headers.length).setValues(rows);
+        const logCount = appendLogs(payload.logs);
 
-        return createResponse({ status: "success", count: productList.length });
+        return createResponse({ status: "success", count: productList.length, logCount: logCount });
 
     } catch (error) {
         return createResponse({ status: "error", message: error.toString() });
     }
 }
 
-function getSheet() {
-    return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+function appendLogs(logs) {
+    if (!Array.isArray(logs) || logs.length === 0) return 0;
+
+    const sheet = getLogSheet();
+    const headers = ["日時", "商品ID", "商品名", "増減", "結果在庫", "バーコード"];
+    if (sheet.getLastRow() === 0) {
+        sheet.appendRow(headers);
+    }
+
+    const rows = logs.map(log => [
+        log.timestamp || "",
+        log.productId !== undefined && log.productId !== null ? log.productId : "",
+        log.name || "",
+        log.delta || "",
+        log.resultStock !== undefined && log.resultStock !== null ? log.resultStock : "",
+        log.barcode || ""
+    ]);
+    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+    return rows.length;
+}
+
+function getProductSheet() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    return ss.getSheetByName("商品") ||
+        ss.getSheets().find(sheet => sheet.getName() !== "ログ") ||
+        ss.getActiveSheet();
+}
+
+function getLogSheet() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetName = "ログ";
+    return ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
 }
 
 function createResponse(data) {

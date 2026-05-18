@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>在庫管理アプリ</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <!-- html5-qrcode library for barcode scanning -->
@@ -17,7 +18,7 @@
             style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000;">
             <h1 style="margin: 0; color: white; font-size: 1.2rem;">在庫管理</h1>
             <span class="version-badge"
-                style="font-size: 0.75rem; font-weight: bold; color: #1e3a8a; background: rgba(255,255,255,0.9); padding: 3px 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">v1.2.22</span>
+                style="font-size: 0.75rem; font-weight: bold; color: #1e3a8a; background: rgba(255,255,255,0.9); padding: 3px 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">v1.2.23</span>
         </header>
 
         <main id="main-content">
@@ -114,7 +115,7 @@
                             <p class="product-meta" style="font-size: 0.8rem; margin-top: 5px;">
                                 JANコードから商品情報を自動取得するために必要です。
                                 <a href="https://e.developer.yahoo.co.jp/register"
-                                    target="_blank">Yahoo!デベロッパーネットワーク</a>で取得できます。
+                                    target="_blank" rel="noopener">Yahoo!デベロッパーネットワーク</a>で取得できます。
                             </p>
                         </div>
                         <button type="submit" class="btn-primary">保存</button>

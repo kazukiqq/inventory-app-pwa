@@ -7,8 +7,8 @@ const filesToUpdate = [
         path: 'index.html',
         patterns: [
             {
-                regex: /<span class="version-badge">v([\d.]+)<\/span>/,
-                replace: '<span class="version-badge">v$VERSION</span>'
+                regex: /(<span\b[^>]*class="version-badge"[^>]*>)v([\d.]+)(<\/span>)/,
+                replace: '$1v$VERSION$3'
             }
         ]
     },
@@ -16,12 +16,8 @@ const filesToUpdate = [
         path: 'app.js',
         patterns: [
             {
-                regex: /const swUrl = '\.\/sw\.js\?build=([\d.]+)';/,
-                replace: "const swUrl = './sw.js?build=$VERSION';"
-            },
-            {
-                regex: /console\.log\('App version: v([\d.]+)'\);/,
-                replace: "console.log('App version: v$VERSION');"
+                regex: /const APP_VERSION = '([\d.]+)';/,
+                replace: "const APP_VERSION = '$VERSION';"
             }
         ]
     },
@@ -32,8 +28,8 @@ const filesToUpdate = [
                 regex: /const CACHE_NAME = 'inventory-app-v(\d+)';/,
                 replace: (match, p1) => {
                     // newVersion is available in the outer scope
-                    const major = currentNewVersion.split('.')[0];
-                    return `const CACHE_NAME = 'inventory-app-v${major}';`;
+                    const cacheVersion = currentNewVersion.split('.').pop();
+                    return `const CACHE_NAME = 'inventory-app-v${cacheVersion}';`;
                 }
             }
         ]

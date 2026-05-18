@@ -4,13 +4,14 @@
 let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
+const APP_VERSION = '1.2.23';
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // 起動確認用アラート（一度更新されれば確認できるはずです）
-    console.log('App version: v1.2.22');
+    console.log(`App version: v${APP_VERSION}`);
 
     loadData();
     loadCategories();
@@ -56,10 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.addEventListener('load', () => {
             // App version to bypass HTTP cache for sw.js itself
-            const swUrl = './sw.js?build=1.2.22';
+            const swUrl = `./sw.js?build=${APP_VERSION}`;
             navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('SW Registered: v1.2.21');
+                    console.log(`SW Registered: v${APP_VERSION}`);
 
                     // Periodically check for updates
                     reg.update();
@@ -93,11 +94,131 @@ function normalizeString(val) {
     return String(val).normalize('NFKC').trim();
 }
 
+function normalizeText(val) {
+    if (val === null || val === undefined) return '';
+    return String(val).trim();
+}
+
+function escapeHtml(val) {
+    return String(val ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[char]));
+}
+
+function parseNumberInput(val, fallback = 0) {
+    const normalized = normalizeString(val).replace(/,/g, '');
+    if (!normalized) return fallback;
+    const num = Number(normalized);
+    return Number.isFinite(num) ? num : fallback;
+}
+
+function normalizeProduct(raw, fallbackId = Date.now()) {
+    const idValue = Number(raw && raw.id);
+    return {
+        id: Number.isFinite(idValue) ? idValue : fallbackId,
+        name: normalizeText(raw && raw.name),
+        price: Math.max(0, Math.trunc(parseNumberInput(raw && raw.price))),
+        stock: Math.max(0, Math.trunc(parseNumberInput(raw && raw.stock))),
+        barcode: normalizeString(raw && raw.barcode),
+        category: normalizeText(raw && raw.category)
+    };
+}
+
+function readJsonArray(key, label) {
+    const data = localStorage.getItem(key);
+    if (!data) return null;
+
+    try {
+        const parsed = JSON.parse(data);
+        if (!Array.isArray(parsed)) throw new Error('Saved value is not an array');
+        return parsed;
+    } catch (error) {
+        console.error(`${label} parse failed`, error);
+        alert(`${label}の保存データを読み込めませんでした。データを上書きせず、空の状態で起動します。`);
+        return [];
+    }
+}
+
+function saveJson(key, value, label) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+    } catch (error) {
+        console.error(`${label} save failed`, error);
+        alert(`${label}の保存に失敗しました。端末の空き容量またはブラウザの保存容量を確認してください。`);
+        return false;
+    }
+}
+
+function getStockLogs() {
+    return readJsonArray('inventory_app_logs', '在庫履歴') || [];
+}
+
+function saveStockLogs(logs) {
+    return saveJson('inventory_app_logs', logs, '在庫履歴');
+}
+
+function csvEscape(val) {
+    const str = String(val ?? '');
+    if (/[",\r\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+}
+
+function parseCSVRows(text) {
+    const rows = [];
+    let row = [];
+    let cell = '';
+    let inQuotes = false;
+    const src = String(text || '').replace(/^\uFEFF/, '');
+
+    for (let i = 0; i < src.length; i++) {
+        const char = src[i];
+        const next = src[i + 1];
+
+        if (char === '"') {
+            if (inQuotes && next === '"') {
+                cell += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+            continue;
+        }
+
+        if (char === ',' && !inQuotes) {
+            row.push(cell);
+            cell = '';
+            continue;
+        }
+
+        if ((char === '\n' || char === '\r') && !inQuotes) {
+            if (char === '\r' && next === '\n') i++;
+            row.push(cell);
+            if (row.some(value => value.trim() !== '')) rows.push(row);
+            row = [];
+            cell = '';
+            continue;
+        }
+
+        cell += char;
+    }
+
+    row.push(cell);
+    if (row.some(value => value.trim() !== '')) rows.push(row);
+    return rows;
+}
+
 // --- Data Management ---
 function loadData() {
-    const data = localStorage.getItem('inventory_app_products');
+    const data = readJsonArray('inventory_app_products', '商品データ');
     if (data) {
-        products = JSON.parse(data);
+        products = data.map((p, index) => normalizeProduct(p, Date.now() + index)).filter(p => p.name);
     } else {
         // Initial Dummy Data
         products = [
@@ -108,14 +229,14 @@ function loadData() {
 }
 
 function saveData() {
-    localStorage.setItem('inventory_app_products', JSON.stringify(products));
+    return saveJson('inventory_app_products', products, '商品データ');
 }
 
 // --- Category Management ---
 function loadCategories() {
-    const data = localStorage.getItem('inventory_app_categories');
+    const data = readJsonArray('inventory_app_categories', 'カテゴリデータ');
     if (data) {
-        categories = JSON.parse(data);
+        categories = data.map(normalizeText).filter(Boolean);
     } else {
         categories = ['文具', '食品', '事務用品'];
         saveCategories();
@@ -123,7 +244,7 @@ function loadCategories() {
 }
 
 function saveCategories() {
-    localStorage.setItem('inventory_app_categories', JSON.stringify(categories));
+    return saveJson('inventory_app_categories', categories, 'カテゴリデータ');
 }
 
 function addCategory() {
@@ -146,6 +267,20 @@ function deleteCategory(index) {
 
     categories.splice(index, 1);
     saveCategories();
+
+    let updatedCount = 0;
+    products.forEach(p => {
+        if (p.category === name) {
+            p.category = '';
+            updatedCount++;
+        }
+    });
+    if (updatedCount > 0) {
+        saveData();
+        renderMasterList();
+        renderInventory();
+    }
+
     renderCategoryList();
     renderCategoryDropdowns();
 }
@@ -218,7 +353,7 @@ function renderCategoryList() {
         const isLast = index === categories.length - 1;
 
         div.innerHTML = `
-            <span class="category-manage-name">${cat}</span>
+            <span class="category-manage-name">${escapeHtml(cat)}</span>
             <div class="category-controls">
                 <button class="btn-small" onclick="moveCategory(${index}, -1)" ${isFirst ? 'disabled style="opacity:0.3"' : ''}>↑</button>
                 <button class="btn-small" onclick="moveCategory(${index}, 1)" ${isLast ? 'disabled style="opacity:0.3"' : ''}>↓</button>
@@ -384,17 +519,17 @@ function setupForms() {
         if (code) {
             kokuyoBtn.style.display = 'block';
             kokuyoBtn.onclick = () => {
-                window.open(`https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${code}`, '_blank');
+                window.open(`https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${encodeURIComponent(code)}`, '_blank', 'noopener');
             };
 
             crownBtn.style.display = 'block';
             crownBtn.onclick = () => {
-                window.open(`https://www.crowngroup.co.jp/office-zukan/list/?p_keyword=${code}`, '_blank');
+                window.open(`https://www.crowngroup.co.jp/office-zukan/list/?p_keyword=${encodeURIComponent(code)}`, '_blank', 'noopener');
             };
 
             amazonBtn.style.display = 'block';
             amazonBtn.onclick = () => {
-                window.open(`https://www.amazon.co.jp/s?k=${code}`, '_blank');
+                window.open(`https://www.amazon.co.jp/s?k=${encodeURIComponent(code)}`, '_blank', 'noopener');
             };
 
             // Auto-fetch if new product
@@ -444,22 +579,13 @@ function exportCSV() {
 
     // Rows
     const rows = products.map(p => {
-        // Escape commas and quotes if necessary
-        const escape = (txt) => {
-            if (txt === null || txt === undefined) return '';
-            const str = String(txt);
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`;
-            }
-            return str;
-        };
         return [
             p.id,
-            escape(p.name),
+            csvEscape(p.name),
             p.price,
             p.stock,
-            escape(p.barcode),
-            escape(p.category)
+            csvEscape(p.barcode),
+            csvEscape(p.category)
         ].join(',');
     });
 
@@ -483,30 +609,31 @@ function importCSV(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
         const text = e.target.result;
-        const lines = text.split(/\r\n|\n/);
+        const rows = parseCSVRows(text);
 
         // Remove header if it looks like a header
-        if (lines[0].includes('ID') && lines[0].includes('商品名')) {
-            lines.shift();
+        if (rows.length && rows[0].includes('ID') && rows[0].includes('商品名')) {
+            rows.shift();
         }
 
         let updatedCount = 0;
         let addedCount = 0;
+        let skippedCount = 0;
 
-        lines.forEach(line => {
-            if (!line.trim()) return;
-
-            const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"'));
-
+        rows.forEach((cols, index) => {
             // Expected: ID, Name, Price, Stock, Barcode, Category
-            let id = cols[0] ? parseInt(cols[0]) : Date.now() + Math.random();
-            const name = cols[1];
-            const price = parseInt(cols[2]) || 0;
-            const stock = parseInt(cols[3]) || 0;
+            const parsedId = parseNumberInput(cols[0], NaN);
+            const id = Number.isFinite(parsedId) ? parsedId : Date.now() + index + Math.random();
+            const name = normalizeText(cols[1]);
+            const price = Math.max(0, Math.trunc(parseNumberInput(cols[2])));
+            const stock = Math.max(0, Math.trunc(parseNumberInput(cols[3])));
             const barcode = normalizeString(cols[4] || '');
-            const category = cols[5] ? cols[5].trim() : '';
+            const category = normalizeText(cols[5]);
 
-            if (!name) return;
+            if (!name) {
+                skippedCount++;
+                return;
+            }
 
             const existingIndex = products.findIndex(p => p.id === id);
 
@@ -521,10 +648,10 @@ function importCSV(file) {
             }
         });
 
-        saveData();
+        if (!saveData()) return;
         renderMasterList();
         renderInventory();
-        alert(`読み込み完了:\n更新: ${updatedCount}件\n追加: ${addedCount}件`);
+        alert(`読み込み完了:\n更新: ${updatedCount}件\n追加: ${addedCount}件\nスキップ: ${skippedCount}件`);
     };
     reader.readAsText(file);
 }
@@ -563,14 +690,21 @@ function saveProductFromForm() {
     const stockInput = document.getElementById('prod-stock');
     const barcodeInput = document.getElementById('prod-barcode');
     const categoryInput = document.getElementById('prod-category');
+    const name = normalizeText(nameInput.value);
+
+    if (!name) {
+        alert('商品名を入力してください');
+        nameInput.focus();
+        return;
+    }
 
     const product = {
-        id: idInput.value ? parseInt(idInput.value) : Date.now(),
-        name: nameInput.value,
-        price: parseInt(priceInput.value) || 0,
-        stock: parseInt(stockInput.value) || 0,
+        id: idInput.value ? parseNumberInput(idInput.value) : Date.now(),
+        name: name,
+        price: Math.max(0, Math.trunc(parseNumberInput(priceInput.value))),
+        stock: Math.max(0, Math.trunc(parseNumberInput(stockInput.value))),
         barcode: normalizeString(barcodeInput.value || ''),
-        category: categoryInput ? categoryInput.value : ''
+        category: categoryInput ? normalizeText(categoryInput.value) : ''
     };
 
     if (idInput.value) {
@@ -582,7 +716,7 @@ function saveProductFromForm() {
         products.push(product);
     }
 
-    saveData();
+    if (!saveData()) return;
 
     document.getElementById('product-form').reset();
     document.getElementById('prod-id').value = '';
@@ -618,17 +752,18 @@ function editProduct(id) {
     const crownBtn = document.getElementById('crown-search-btn');
     const amazonBtn = document.getElementById('amazon-search-btn');
     if (p.barcode) {
+        const barcodeQuery = encodeURIComponent(p.barcode);
         kokuyoBtn.style.display = 'block';
         kokuyoBtn.onclick = () => {
-            window.open(`https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${p.barcode}`, '_blank');
+            window.open(`https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${barcodeQuery}`, '_blank', 'noopener');
         };
         crownBtn.style.display = 'block';
         crownBtn.onclick = () => {
-            window.open(`https://www.crowngroup.co.jp/office-zukan/list/?p_keyword=${p.barcode}`, '_blank');
+            window.open(`https://www.crowngroup.co.jp/office-zukan/list/?p_keyword=${barcodeQuery}`, '_blank', 'noopener');
         };
         amazonBtn.style.display = 'block';
         amazonBtn.onclick = () => {
-            window.open(`https://www.amazon.co.jp/s?k=${p.barcode}`, '_blank');
+            window.open(`https://www.amazon.co.jp/s?k=${barcodeQuery}`, '_blank', 'noopener');
         };
     } else {
         kokuyoBtn.style.display = 'none';
@@ -646,11 +781,11 @@ function renderMasterList() {
     products.forEach(p => {
         const div = document.createElement('div');
         div.className = 'product-item';
-        const categoryLabel = p.category ? `<span class="category-badge">${p.category}</span>` : '';
+        const categoryLabel = p.category ? `<span class="category-badge">${escapeHtml(p.category)}</span>` : '';
         div.innerHTML = `
             <div class="product-info">
-                <h3>${p.name} ${categoryLabel}</h3>
-                <div class="product-meta">¥${p.price} | 在庫: ${p.stock} | ${p.barcode || '-'}</div>
+                <h3>${escapeHtml(p.name)} ${categoryLabel}</h3>
+                <div class="product-meta">¥${escapeHtml(p.price)} | 在庫: ${escapeHtml(p.stock)} | ${escapeHtml(p.barcode || '-')}</div>
             </div>
             <div class="actions">
                 <button class="btn-secondary" onclick="editProduct(${p.id})">編集</button>
@@ -680,17 +815,18 @@ function performSearch(query) {
 
     if (hits.length === 0) {
         if (/^\d+$/.test(query) && query.length > 8) {
+            const encodedQuery = encodeURIComponent(query);
             container.innerHTML = `
                 <div style="text-align:center; padding: 1rem;">
                     <p style="color: var(--secondary-color); margin-bottom: 1rem;">アプリ内に見つかりませんでした</p>
                     <div class="row" style="gap:5px; justify-content:center; flex-wrap: wrap;">
-                        <a href="https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.7rem; flex: 1; text-align: center;">
+                        <a href="https://www.kokuyo-st.co.jp/search/sp_search.php?flg=1&input_str=${encodedQuery}" target="_blank" rel="noopener" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.7rem; flex: 1; text-align: center;">
                             コクヨ ↗
                         </a>
-                        <a href="https://www.crowngroup.co.jp/office-zukan/list/?p_keyword=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.7rem; flex: 1; text-align: center;">
+                        <a href="https://www.crowngroup.co.jp/office-zukan/list/?p_keyword=${encodedQuery}" target="_blank" rel="noopener" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.7rem; flex: 1; text-align: center;">
                             オフィス図鑑 ↗
                         </a>
-                        <a href="https://www.amazon.co.jp/s?k=${query}" target="_blank" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.7rem; flex: 1; text-align: center;">
+                        <a href="https://www.amazon.co.jp/s?k=${encodedQuery}" target="_blank" rel="noopener" class="btn-secondary" style="text-decoration:none; display:inline-block; font-size: 0.7rem; flex: 1; text-align: center;">
                             Amazon ↗
                         </a>
                     </div>
@@ -705,15 +841,15 @@ function performSearch(query) {
     hits.forEach(p => {
         const div = document.createElement('div');
         div.className = `product-item ${p.stock <= 3 ? 'low-stock' : ''}`;
-        const categoryLabel = p.category ? `<span class="category-badge">${p.category}</span>` : '';
+        const categoryLabel = p.category ? `<span class="category-badge">${escapeHtml(p.category)}</span>` : '';
         div.innerHTML = `
             <div class="product-info" style="flex: 1;">
-                <h3>${p.name} ${categoryLabel}</h3>
-                <div class="product-meta">¥${p.price} | ${p.barcode || '-'}</div>
+                <h3>${escapeHtml(p.name)} ${categoryLabel}</h3>
+                <div class="product-meta">¥${escapeHtml(p.price)} | ${escapeHtml(p.barcode || '-')}</div>
             </div>
             <div class="stock-control" style="display: flex; align-items: center; gap: 0.5rem;">
                 <button class="stock-btn" onclick="updateStockFromSearch(${p.id}, -1)">-</button>
-                <span class="stock-val" id="search-stock-val-${p.id}">${p.stock}</span>
+                <span class="stock-val" id="search-stock-val-${p.id}">${escapeHtml(p.stock)}</span>
                 <button class="stock-btn" onclick="updateStockFromSearch(${p.id}, 1)">+</button>
             </div>
             <button class="btn-secondary" style="margin-left: 0.5rem; font-size: 0.8rem;" onclick="editProductFromSearch(${p.id})">編集</button>
@@ -745,15 +881,15 @@ function renderInventory(filterText = '') {
     filtered.forEach(p => {
         const div = document.createElement('div');
         div.className = `product-item ${p.stock <= 3 ? 'low-stock' : ''}`;
-        const categoryLabel = p.category ? `<span class="category-badge">${p.category}</span>` : '';
+        const categoryLabel = p.category ? `<span class="category-badge">${escapeHtml(p.category)}</span>` : '';
         div.innerHTML = `
             <div class="product-info">
-                <h3>${p.name} ${categoryLabel}</h3>
-                <div class="product-meta">現在庫: ${p.stock}</div>
+                <h3>${escapeHtml(p.name)} ${categoryLabel}</h3>
+                <div class="product-meta stock-meta">現在庫: ${escapeHtml(p.stock)}</div>
             </div>
             <div class="stock-control">
                 <button class="stock-btn" onclick="updateStock(${p.id}, -1)">-</button>
-                <span class="stock-val" id="stock-val-${p.id}">${p.stock}</span>
+                <span class="stock-val" id="stock-val-${p.id}">${escapeHtml(p.stock)}</span>
                 <button class="stock-btn" onclick="updateStock(${p.id}, 1)">+</button>
             </div>
         `;
@@ -761,59 +897,65 @@ function renderInventory(filterText = '') {
     });
 }
 
-function updateStock(id, delta) {
+function refreshStockDisplay(id, stock) {
+    [`stock-val-${id}`, `search-stock-val-${id}`].forEach(elementId => {
+        const valSpan = document.getElementById(elementId);
+        if (!valSpan) return;
+
+        valSpan.innerText = stock;
+        const item = valSpan.closest('.product-item');
+        if (item) {
+            item.classList.toggle('low-stock', stock <= 3);
+            const stockMeta = item.querySelector('.stock-meta');
+            if (stockMeta) stockMeta.innerText = `現在庫: ${stock}`;
+        }
+    });
+}
+
+function appendStockLog(product, actualDelta) {
+    const logs = getStockLogs();
+    logs.push({
+        timestamp: new Date().toLocaleString('ja-JP'),
+        productId: product.id,
+        name: product.name,
+        delta: actualDelta > 0 ? `+${actualDelta}` : `${actualDelta}`,
+        resultStock: product.stock,
+        barcode: product.barcode || ''
+    });
+    saveStockLogs(logs);
+}
+
+function changeProductStock(id, delta) {
     const p = products.find(p => p.id === id);
-    if (p) {
-        p.stock += delta;
-        if (p.stock < 0) p.stock = 0;
+    if (!p) return;
 
-        saveData();
+    const previousStock = Math.max(0, Number(p.stock) || 0);
+    const nextStock = Math.max(0, previousStock + delta);
+    const actualDelta = nextStock - previousStock;
 
-        // --- Log Recording ---
-        const logs = JSON.parse(localStorage.getItem('inventory_app_logs') || '[]');
-        logs.push({
-            timestamp: new Date().toLocaleString('ja-JP'),
-            productId: p.id,
-            name: p.name,
-            delta: delta > 0 ? `+${delta}` : `${delta}`,
-            resultStock: p.stock,
-            barcode: p.barcode || ''
-        });
-        localStorage.setItem('inventory_app_logs', JSON.stringify(logs));
-        // ---------------------
-
-        // Update UI
-        const valSpan = document.getElementById(`stock-val-${id}`);
-        if (valSpan) valSpan.innerText = p.stock;
+    if (actualDelta === 0) {
+        refreshStockDisplay(id, previousStock);
+        return;
     }
+
+    p.stock = nextStock;
+    if (!saveData()) {
+        p.stock = previousStock;
+        refreshStockDisplay(id, previousStock);
+        return;
+    }
+
+    appendStockLog(p, actualDelta);
+    refreshStockDisplay(id, p.stock);
+}
+
+function updateStock(id, delta) {
+    changeProductStock(id, delta);
 }
 
 // Update stock from search results and refresh UI
 function updateStockFromSearch(id, delta) {
-    const p = products.find(p => p.id === id);
-    if (p) {
-        p.stock += delta;
-        if (p.stock < 0) p.stock = 0;
-
-        saveData();
-
-        // --- Log Recording ---
-        const logs = JSON.parse(localStorage.getItem('inventory_app_logs') || '[]');
-        logs.push({
-            timestamp: new Date().toLocaleString('ja-JP'),
-            productId: p.id,
-            name: p.name,
-            delta: delta > 0 ? `+${delta}` : `${delta}`,
-            resultStock: p.stock,
-            barcode: p.barcode || ''
-        });
-        localStorage.setItem('inventory_app_logs', JSON.stringify(logs));
-        // ---------------------
-
-        // Update UI for search results
-        const valSpan = document.getElementById(`search-stock-val-${id}`);
-        if (valSpan) valSpan.innerText = p.stock;
-    }
+    changeProductStock(id, delta);
 }
 
 // Edit product from search results
@@ -981,6 +1123,53 @@ function stopScanner() {
 }
 
 // --- GAS Integration ---
+function submitGasFormFallback(url, payload) {
+    return new Promise((resolve, reject) => {
+        const iframeId = `gas-target-iframe-${Date.now()}`;
+        const iframe = document.createElement('iframe');
+        iframe.id = iframeId;
+        iframe.name = iframeId;
+        iframe.style.display = 'none';
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.target = iframeId;
+        form.style.display = 'none';
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'data';
+        input.value = JSON.stringify(payload);
+        form.appendChild(input);
+
+        let settled = false;
+        const cleanup = () => {
+            if (form.parentNode) document.body.removeChild(form);
+            if (iframe.parentNode) document.body.removeChild(iframe);
+        };
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve();
+        };
+
+        iframe.onload = finish;
+        document.body.appendChild(iframe);
+        document.body.appendChild(form);
+
+        try {
+            form.submit();
+            setTimeout(finish, 4000);
+        } catch (error) {
+            settled = true;
+            cleanup();
+            reject(error);
+        }
+    });
+}
+
 async function downloadFromGas() {
     const url = localStorage.getItem('inventory_app_gas_url') || DEFAULT_GAS_URL;
     if (!url) return alert('GAS Webアプリ URLを設定してください');
@@ -996,15 +1185,16 @@ async function downloadFromGas() {
         const response = await fetch(url);
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
+        if (data && data.status === 'error') throw new Error(data.message || 'GAS error');
 
         const productData = (data.products) ? data.products : data;
 
         if (Array.isArray(productData)) {
-            products = productData;
-            saveData();
+            products = productData.map((p, index) => normalizeProduct(p, Date.now() + index)).filter(p => p.name);
+            if (!saveData()) return;
             renderMasterList();
             renderInventory();
-            alert(`読み込み完了: ${productData.length}件`);
+            alert(`読み込み完了: ${products.length}件`);
         } else {
             alert('データ形式が不正です');
         }
@@ -1028,55 +1218,43 @@ async function uploadToGas() {
     btn.innerText = '送信中...';
     btn.disabled = true;
 
-    // Create a hidden iframe
-    const iframeId = 'gas-target-iframe';
-    let iframe = document.getElementById(iframeId);
-    if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = iframeId;
-        iframe.name = iframeId;
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-    }
-
-    // Create a form
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = url;
-    form.target = iframeId;
-    form.style.display = 'none';
-
-    // Fetch logs
-    const logs = JSON.parse(localStorage.getItem('inventory_app_logs') || '[]');
-
-    // Data input
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = 'data';
-    // Payload: { products: [...], logs: [...] }
-    input.value = JSON.stringify({
-        products: products,
-        logs: logs
-    });
-    form.appendChild(input);
-
-    document.body.appendChild(form);
-
     try {
-        form.submit();
+        const logs = getStockLogs();
+        const payload = {
+            products: products,
+            logs: logs
+        };
+        const body = new URLSearchParams();
+        body.set('data', JSON.stringify(payload));
 
-        // Clear logs after send
+        let result;
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                body
+            });
+            if (!response.ok) throw new Error('Network response was not ok');
+            result = await response.json();
+        } catch (fetchError) {
+            console.warn('Fetch upload failed, falling back to form POST', fetchError);
+            await submitGasFormFallback(url, payload);
+            alert('送信結果を確認できないため、在庫履歴は端末内に残しました。\nスプレッドシート側に反映されているか確認してください。');
+            return;
+        }
+
+        if (!result || result.status !== 'success') {
+            throw new Error((result && result.message) || 'GASから成功応答が返りませんでした');
+        }
+
         localStorage.removeItem('inventory_app_logs');
 
-        alert('データを送信しました。\n(※数秒後にスプレッドシートを確認してください)');
+        alert(`データを送信しました。\n商品: ${result.count ?? products.length}件\n履歴: ${result.logCount ?? logs.length}件`);
     } catch (e) {
-        alert('送信エラー: ' + e.message);
+        console.error(e);
+        alert('送信に失敗したため、在庫履歴は端末内に残しました:\n' + e.message);
     } finally {
-        setTimeout(() => {
-            document.body.removeChild(form);
-            btn.innerText = originalText;
-            btn.disabled = false;
-        }, 1000);
+        btn.innerText = originalText;
+        btn.disabled = false;
     }
 }
 

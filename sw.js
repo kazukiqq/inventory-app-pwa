@@ -1,4 +1,4 @@
-const CACHE_NAME = 'inventory-app-v22';
+const CACHE_NAME = 'inventory-app-v23';
 const ASSETS = [
     '/',
     '/index.html',
@@ -14,7 +14,11 @@ self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log('Caching assets');
-            return cache.addAll(ASSETS);
+            return Promise.all(
+                ASSETS.map((asset) => cache.add(asset).catch((error) => {
+                    console.warn('Cache skipped:', asset, error);
+                }))
+            );
         }).then(() => {
             return self.skipWaiting();
         })
@@ -36,6 +40,8 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event - Network First for the main page, Cache First for others
 self.addEventListener('fetch', (event) => {
+    if (event.request.method !== 'GET') return;
+
     const url = new URL(event.request.url);
 
     // For the main page (index.html or root), try network first
