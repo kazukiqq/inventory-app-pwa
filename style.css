@@ -387,19 +387,44 @@ button {
     background: var(--surface-color);
     padding: 1rem;
     border-radius: var(--radius);
-    width: 90%;
-    max-width: 400px;
+    width: min(94vw, 520px);
+    max-height: 92vh;
     box-shadow: var(--shadow);
+}
+
+.scanner-reader-frame {
+    position: relative;
 }
 
 #reader {
     width: 100%;
-    min-height: 300px;
+    min-height: min(68vh, 420px);
     /* Force height */
     background-color: #000;
     /* Visual feedback */
     border-radius: 0.5rem;
     overflow: hidden;
+}
+
+.scan-guide {
+    position: absolute;
+    pointer-events: none;
+    border: 2px solid rgba(34, 197, 94, 0.9);
+    border-radius: 0.35rem;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.18);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.scan-guide-horizontal {
+    width: min(72vw, 340px);
+    height: 82px;
+}
+
+.scan-guide-vertical {
+    width: 82px;
+    height: min(54vh, 340px);
 }
 
 .scanner-status {

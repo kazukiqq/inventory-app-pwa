@@ -5,7 +5,7 @@ let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
 let scannerStopPromise = null;
-const APP_VERSION = '1.2.32';
+const APP_VERSION = '1.2.33';
 const SCAN_CONFIRM_REQUIRED = 2;
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
@@ -153,6 +153,16 @@ function isValidScannedBarcodeCandidate(code) {
     }
 
     return true;
+}
+
+function getScannerQrbox(viewfinderWidth, viewfinderHeight) {
+    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+    const size = Math.floor(Math.min(Math.max(240, minEdge * 0.9), 420));
+    return { width: size, height: size };
+}
+
+function getScannerAspectRatio() {
+    return window.innerWidth > window.innerHeight ? 16 / 9 : 3 / 4;
 }
 
 function normalizeText(val) {
@@ -1227,13 +1237,16 @@ function initScanner(targetInputId) {
     html5QrcodeScanner = html5QrCode;
     let scanCompleted = false;
     const scanState = { code: '', count: 0 };
-    setScannerStatus('バーコードを枠内に入れてください');
+    setScannerStatus('縦向き・横向きどちらでも、バーコード全体を中央に入れてください');
 
     const config = {
         fps: 15,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
+        qrbox: getScannerQrbox,
+        aspectRatio: getScannerAspectRatio(),
         useBarCodeDetectorIfSupported: true,
+        experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+        },
         formatsToSupport: [
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.EAN_8,
