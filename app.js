@@ -4,7 +4,7 @@
 let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
-const APP_VERSION = '1.2.29';
+const APP_VERSION = '1.2.30';
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 
@@ -117,6 +117,10 @@ function barcodeEquivalent(leftBarcode, rightBarcode) {
 
 function isFullBarcodeQuery(query) {
     return /^\d{8,}$/.test(normalizeBarcode(query));
+}
+
+function normalizeScannedCode(val) {
+    return normalizeBarcode(val) || normalizeString(val);
 }
 
 function normalizeText(val) {
@@ -585,7 +589,7 @@ function setupForms() {
     // Search Input Logic
     const searchInput = document.getElementById('search-input');
     searchInput.addEventListener('input', (e) => {
-        performSearch(e.target.value);
+        updateSearchInput(e.target.value, false);
     });
 
     // Inventory Search
@@ -945,6 +949,17 @@ function renderMasterList() {
 }
 
 // --- Search Functions ---
+function updateSearchInput(query, shouldSyncInput = true) {
+    const normalizedQuery = shouldSyncInput ? normalizeScannedCode(query) : normalizeString(query);
+    const searchInput = document.getElementById('search-input');
+
+    if (shouldSyncInput && searchInput) {
+        searchInput.value = normalizedQuery;
+    }
+
+    performSearch(normalizedQuery);
+}
+
 function performSearch(query) {
     const container = document.getElementById('search-results');
     container.innerHTML = '';
@@ -1145,6 +1160,7 @@ function startScanner(targetInputId) {
 function initScanner(targetInputId) {
     const html5QrCode = new Html5Qrcode("reader");
     html5QrcodeScanner = html5QrCode;
+    let scanCompleted = false;
 
     const config = {
         fps: 15,
@@ -1162,11 +1178,13 @@ function initScanner(targetInputId) {
     };
 
     html5QrCode.start({ facingMode: "environment" }, config, (decodedText, decodedResult) => {
+        if (scanCompleted) return;
+        scanCompleted = true;
         console.log(`Code matched = ${decodedText}`, decodedResult);
 
         const input = document.getElementById(targetInputId);
         if (input) {
-            const scannedCode = normalizeBarcode(decodedText) || normalizeString(decodedText);
+            const scannedCode = normalizeScannedCode(decodedText);
             input.value = scannedCode;
 
             // Dispatch events with bubbling enabled to ensure listeners catch them
@@ -1176,7 +1194,7 @@ function initScanner(targetInputId) {
             // Explicitly trigger search if it's the search input
             // This is a failsafe in case the event listeners don't fire or propagate as expected
             if (targetInputId === 'search-input') {
-                performSearch(scannedCode);
+                updateSearchInput(scannedCode);
             }
         }
 
