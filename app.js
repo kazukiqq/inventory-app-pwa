@@ -4,7 +4,8 @@
 let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
-const APP_VERSION = '1.2.30';
+let scannerStopPromise = null;
+const APP_VERSION = '1.2.31';
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 
@@ -960,6 +961,15 @@ function updateSearchInput(query, shouldSyncInput = true) {
     performSearch(normalizedQuery);
 }
 
+function updateSearchFromScan(scannedCode) {
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    performSearch('');
+    updateSearchInput(scannedCode);
+}
+
 function performSearch(query) {
     const container = document.getElementById('search-results');
     container.innerHTML = '';
@@ -1138,23 +1148,13 @@ function editProductFromSearch(id) {
 }
 
 // --- Barcode Scanner ---
-function startScanner(targetInputId) {
+async function startScanner(targetInputId) {
     const modal = document.getElementById('scanner-modal');
     modal.style.display = 'flex'; // Show modal
 
-    // Stop existing scanner first if any
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => {
-            html5QrcodeScanner.clear();
-            html5QrcodeScanner = null;
-            initScanner(targetInputId);
-        }).catch(() => {
-            html5QrcodeScanner = null;
-            initScanner(targetInputId);
-        });
-    } else {
-        initScanner(targetInputId);
-    }
+    await stopScanner(false);
+    modal.style.display = 'flex';
+    initScanner(targetInputId);
 }
 
 function initScanner(targetInputId) {
@@ -1194,7 +1194,7 @@ function initScanner(targetInputId) {
             // Explicitly trigger search if it's the search input
             // This is a failsafe in case the event listeners don't fire or propagate as expected
             if (targetInputId === 'search-input') {
-                updateSearchInput(scannedCode);
+                updateSearchFromScan(scannedCode);
             }
         }
 
@@ -1277,25 +1277,60 @@ function initScanner(targetInputId) {
         .catch(err => {
             console.error("Error starting scanner", err);
             alert('カメラの起動に失敗しました。権限を確認してください。');
-            document.getElementById('scanner-modal').style.display = 'none'; // Hide on error
+            setScannerModalVisible(false); // Hide on error
             html5QrcodeScanner = null;
         });
 }
 
-function stopScanner() {
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => {
-            html5QrcodeScanner.clear();
-            html5QrcodeScanner = null;
-            document.getElementById('scanner-modal').style.display = 'none'; // Hide modal
-        }).catch(err => {
-            console.error("Failed to stop scanner", err);
-            // Force hide even if error
-            document.getElementById('scanner-modal').style.display = 'none';
-            html5QrcodeScanner = null;
-        });
-    } else {
-        document.getElementById('scanner-modal').style.display = 'none';
+function setScannerModalVisible(isVisible) {
+    const modal = document.getElementById('scanner-modal');
+    if (modal) modal.style.display = isVisible ? 'flex' : 'none';
+}
+
+function clearScannerReader() {
+    const reader = document.getElementById('reader');
+    if (reader) reader.innerHTML = '';
+
+    const torchBtn = document.getElementById('scanner-torch-btn');
+    if (torchBtn) {
+        torchBtn.style.display = 'none';
+        torchBtn.onclick = null;
+    }
+}
+
+async function stopScanner(shouldHideModal = true) {
+    if (scannerStopPromise) {
+        await scannerStopPromise;
+        if (shouldHideModal) setScannerModalVisible(false);
+        return;
+    }
+
+    const scanner = html5QrcodeScanner;
+    html5QrcodeScanner = null;
+
+    scannerStopPromise = (async () => {
+        if (scanner) {
+            try {
+                await scanner.stop();
+            } catch (err) {
+                console.warn("Failed to stop scanner cleanly", err);
+            }
+
+            try {
+                scanner.clear();
+            } catch (err) {
+                console.warn("Failed to clear scanner cleanly", err);
+            }
+        }
+
+        clearScannerReader();
+        if (shouldHideModal) setScannerModalVisible(false);
+    })();
+
+    try {
+        await scannerStopPromise;
+    } finally {
+        scannerStopPromise = null;
     }
 }
 
