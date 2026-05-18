@@ -4,7 +4,7 @@
 let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
-const APP_VERSION = '1.2.28';
+const APP_VERSION = '1.2.29';
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 
@@ -95,11 +95,7 @@ function normalizeString(val) {
 }
 
 function normalizeBarcode(val) {
-    const raw = normalizeString(val).replace(/[^0-9A-Za-z]/g, '').toUpperCase();
-    if (/^\d{13}$/.test(raw) && raw.startsWith('0')) {
-        return raw.slice(1);
-    }
-    return raw;
+    return normalizeString(val).replace(/[^0-9A-Za-z]/g, '').toUpperCase();
 }
 
 function barcodeMatches(productBarcode, queryBarcode) {
@@ -109,7 +105,7 @@ function barcodeMatches(productBarcode, queryBarcode) {
     if (productCode === queryCode) return true;
 
     // Manual short searches can still narrow by barcode prefix/part.
-    // Full barcode reads must be exact after UPC-A/EAN-13 normalization.
+    // Full barcode reads must be exact so search and registration stay identical.
     return queryCode.length < 8 && productCode.includes(queryCode);
 }
 
