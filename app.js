@@ -5,7 +5,7 @@ let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
 let scannerStopPromise = null;
-const APP_VERSION = '1.2.35';
+const APP_VERSION = '1.2.36';
 const SCAN_CONFIRM_REQUIRED = 2;
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
@@ -187,6 +187,110 @@ async function widenScannerCameraView(html5QrCode) {
     } catch (err) {
         console.warn("Could not widen camera view", err);
     }
+}
+
+function getScannerVideoTrack() {
+    const video = document.querySelector('#reader video');
+    const stream = video && video.srcObject;
+    if (!stream || typeof stream.getVideoTracks !== 'function') return null;
+
+    return stream.getVideoTracks().find(track => track.readyState === 'live') || null;
+}
+
+function getTorchSupport(track) {
+    if (!track || typeof track.getCapabilities !== 'function') {
+        return { supported: false, capabilities: null };
+    }
+
+    try {
+        const capabilities = track.getCapabilities();
+        return {
+            supported: capabilities.torch === true,
+            capabilities
+        };
+    } catch (err) {
+        console.warn("Could not get torch capabilities", err);
+        return { supported: false, capabilities: null };
+    }
+}
+
+async function applyScannerTorch(html5QrCode, track, shouldTurnOn) {
+    const attempts = [];
+
+    if (track && typeof track.applyConstraints === 'function') {
+        attempts.push(() => track.applyConstraints({ advanced: [{ torch: shouldTurnOn }] }));
+        attempts.push(() => track.applyConstraints({ torch: shouldTurnOn }));
+    }
+
+    if (html5QrCode && typeof html5QrCode.applyVideoConstraints === 'function') {
+        attempts.push(() => html5QrCode.applyVideoConstraints({ advanced: [{ torch: shouldTurnOn }] }));
+        attempts.push(() => html5QrCode.applyVideoConstraints({ torch: shouldTurnOn }));
+    }
+
+    let lastError = null;
+    for (const attempt of attempts) {
+        try {
+            await attempt();
+            const settings = typeof track?.getSettings === 'function' ? track.getSettings() : {};
+            if (typeof settings.torch === 'boolean' && settings.torch !== shouldTurnOn) {
+                throw new Error('Torch setting did not change on the active camera track.');
+            }
+            return;
+        } catch (err) {
+            lastError = err;
+        }
+    }
+
+    throw lastError || new Error('Torch control is not available on this camera.');
+}
+
+function setupScannerTorchControl(html5QrCode, retryCount = 0) {
+    const torchBtn = document.getElementById('scanner-torch-btn');
+    if (!torchBtn) return;
+
+    const track = getScannerVideoTrack();
+    if (!track && retryCount < 5) {
+        setTimeout(() => setupScannerTorchControl(html5QrCode, retryCount + 1), 300);
+        return;
+    }
+
+    const { supported, capabilities } = getTorchSupport(track);
+    console.log('Camera torch capabilities:', capabilities);
+
+    torchBtn.style.display = 'block';
+    torchBtn.onclick = null;
+
+    if (!track || !supported) {
+        torchBtn.disabled = true;
+        torchBtn.textContent = 'ライト非対応';
+        setScannerStatus('この端末またはブラウザではライト操作に対応していません。', 'warn');
+        return;
+    }
+
+    let isTorchOn = false;
+    torchBtn.disabled = false;
+    torchBtn.textContent = 'ライト ON';
+
+    torchBtn.onclick = async () => {
+        const nextTorchState = !isTorchOn;
+        torchBtn.disabled = true;
+        torchBtn.textContent = nextTorchState ? 'ライト切替中...' : 'ライトOFF中...';
+
+        try {
+            await applyScannerTorch(html5QrCode, track, nextTorchState);
+            isTorchOn = nextTorchState;
+            torchBtn.textContent = isTorchOn ? 'ライト OFF' : 'ライト ON';
+            setScannerStatus(isTorchOn ? 'ライトをオンにしました。' : 'ライトをオフにしました。', 'success');
+        } catch (err) {
+            console.warn("Could not toggle torch", err);
+            torchBtn.textContent = isTorchOn ? 'ライト OFF' : 'ライト ON';
+            setScannerStatus('ライトを切り替えられませんでした。この端末では非対応の可能性があります。', 'warn');
+        } finally {
+            if (track.readyState === 'live') {
+                torchBtn.disabled = false;
+            }
+        }
+    };
 }
 
 function normalizeText(val) {
@@ -1307,77 +1411,7 @@ function initScanner(targetInputId) {
     })
         .then(() => {
             widenScannerCameraView(html5QrCode);
-
-            // --- Torch Logic ---
-            // Try to show the button regardless of strict check results to allow manual trial
-            setTimeout(() => {
-                const torchBtn = document.getElementById('scanner-torch-btn');
-                if (!torchBtn) return;
-
-                // Always display the button for now to debug
-                torchBtn.style.display = 'block';
-                torchBtn.textContent = '💡 ライト ON';
-                torchBtn.onclick = null;
-
-                let isTorchOn = false;
-
-                // Try to check capabilities just for logging
-                try {
-                    const capabilities = html5QrCode.getRunningTrackCameraCapabilities();
-                    console.log('Camera Capabilities:', capabilities);
-                } catch (e) {
-                    console.warn("Could not get capabilities:", e);
-                }
-
-                torchBtn.onclick = async () => {
-                    isTorchOn = !isTorchOn;
-
-                    const applyConstraint = async (constraint) => {
-                        await html5QrCode.applyVideoConstraints({
-                            advanced: [constraint]
-                        });
-                    };
-
-
-
-                    try {
-                        // Attempt 1: Standard Torch (Boolean)
-                        await applyConstraint({ torch: isTorchOn });
-
-                    } catch (err1) {
-                        console.warn("Standard torch failed...", err1);
-                        try {
-                            // Attempt 2: fillLightMode "on" (Often works on Android where "flash" is ignored)
-                            await applyConstraint({ fillLightMode: isTorchOn ? "on" : "off" });
-
-                        } catch (err2) {
-                            console.warn("Fallback (fillLightMode: on) failed...", err2);
-                            try {
-                                // Attempt 3: torch (Integer) - older configs sometimes expect 1/0
-                                await applyConstraint({ torch: isTorchOn ? 1 : 0 });
-
-                            } catch (err3) {
-                                console.warn("Fallback (torch int) failed...", err3);
-                                try {
-                                    // Attempt 4: fillLightMode "flash" (Last resort)
-                                    await applyConstraint({ fillLightMode: isTorchOn ? "flash" : "off" });
-
-                                } catch (err4) {
-                                    console.warn("All torch attempts failed");
-                                    isTorchOn = !isTorchOn;
-                                    return;
-                                }
-                            }
-                        }
-                    }
-
-                    // If we got here, one method "succeeded" (no error thrown)
-                    torchBtn.textContent = isTorchOn ? '🌑 ライト OFF' : '💡 ライト ON';
-
-                    // Verify if it actually changed
-
-                };
-            }, 1000);
+            setTimeout(() => setupScannerTorchControl(html5QrCode), 500);
         })
         .catch(err => {
             console.error("Error starting scanner", err);
@@ -1401,6 +1435,8 @@ function clearScannerReader() {
     if (torchBtn) {
         torchBtn.style.display = 'none';
         torchBtn.onclick = null;
+        torchBtn.disabled = false;
+        torchBtn.textContent = 'ライト ON';
     }
 }
 
