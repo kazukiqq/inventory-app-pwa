@@ -5,8 +5,11 @@ let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
 let scannerStopPromise = null;
-const APP_VERSION = '1.2.36';
-const SCAN_CONFIRM_REQUIRED = 2;
+const APP_VERSION = '1.2.40';
+const SCAN_CONFIRM_REQUIRED = 3;
+const SCAN_CONFIRM_MIN_INTERVAL_MS = 100;
+const SCAN_CONFIRM_MAX_GAP_MS = 1500;
+const SUPPORTED_SCANNER_FORMAT_NAMES = new Set(['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E']);
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 
@@ -106,6 +109,10 @@ function barcodeMatches(productBarcode, queryBarcode) {
     if (!productCode || !queryCode) return false;
     if (productCode === queryCode) return true;
 
+    // UPC-A may be reported as EAN-13 with a leading zero depending on the
+    // browser decoder. Compare valid GTINs in their canonical 14-digit form.
+    if (canonicalizeGtin(productCode) === canonicalizeGtin(queryCode)) return true;
+
     // Manual short searches can still narrow by barcode prefix/part.
     // Full barcode reads must be exact so search and registration stay identical.
     return queryCode.length < 8 && productCode.includes(queryCode);
@@ -114,7 +121,8 @@ function barcodeMatches(productBarcode, queryBarcode) {
 function barcodeEquivalent(leftBarcode, rightBarcode) {
     const leftCode = normalizeBarcode(leftBarcode);
     const rightCode = normalizeBarcode(rightBarcode);
-    return Boolean(leftCode && rightCode && leftCode === rightCode);
+    if (!leftCode || !rightCode) return false;
+    return leftCode === rightCode || canonicalizeGtin(leftCode) === canonicalizeGtin(rightCode);
 }
 
 function isFullBarcodeQuery(query) {
@@ -145,14 +153,77 @@ function hasValidGtinCheckDigit(code) {
     return (10 - (sum % 10)) % 10 === checkDigit;
 }
 
-function isValidScannedBarcodeCandidate(code) {
-    if (!code) return false;
+function canonicalizeGtin(code) {
+    const normalizedCode = normalizeBarcode(code);
+    if (hasValidGtinCheckDigit(normalizedCode)) return normalizedCode.padStart(14, '0');
 
-    if (/^\d+$/.test(code) && isGtinLength(code)) {
-        return hasValidGtinCheckDigit(code);
+    const expandedUpca = expandUpceToUpca(normalizedCode);
+    if (expandedUpca && hasValidGtinCheckDigit(expandedUpca)) return expandedUpca.padStart(14, '0');
+
+    return normalizedCode;
+}
+
+function getDecodedFormatName(decodedResult) {
+    return normalizeString(decodedResult?.result?.format?.formatName).toUpperCase();
+}
+
+function expandUpceToUpca(code) {
+    const normalizedCode = normalizeBarcode(code);
+    if (!/^[01]\d{7}$/.test(normalizedCode)) return '';
+
+    const numberSystem = normalizedCode[0];
+    const data = normalizedCode.slice(1, 7);
+    const checkDigit = normalizedCode[7];
+    const lastDataDigit = data[5];
+    let expandedBody = '';
+
+    if (['0', '1', '2'].includes(lastDataDigit)) {
+        expandedBody = `${data.slice(0, 2)}${lastDataDigit}0000${data.slice(2, 5)}`;
+    } else if (lastDataDigit === '3') {
+        expandedBody = `${data.slice(0, 3)}00000${data.slice(3, 5)}`;
+    } else if (lastDataDigit === '4') {
+        expandedBody = `${data.slice(0, 4)}00000${data[4]}`;
+    } else {
+        expandedBody = `${data.slice(0, 5)}0000${lastDataDigit}`;
     }
 
-    return true;
+    return `${numberSystem}${expandedBody}${checkDigit}`;
+}
+
+function hasValidScannedCheckDigit(code, formatName) {
+    if (formatName === 'UPC_E') {
+        const expandedUpca = expandUpceToUpca(code);
+        return Boolean(expandedUpca && hasValidGtinCheckDigit(expandedUpca));
+    }
+
+    if (hasValidGtinCheckDigit(code)) return true;
+
+    // Some native decoders omit format metadata. For an 8-digit candidate,
+    // also try the UPC-E expansion before rejecting it.
+    if (!formatName && code.length === 8) {
+        const expandedUpca = expandUpceToUpca(code);
+        return Boolean(expandedUpca && hasValidGtinCheckDigit(expandedUpca));
+    }
+
+    return false;
+}
+
+function isValidScannedBarcodeCandidate(code, decodedResult) {
+    if (!/^\d+$/.test(code) || ![8, 12, 13].includes(code.length)) return false;
+
+    const formatName = getDecodedFormatName(decodedResult);
+    if (formatName && !SUPPORTED_SCANNER_FORMAT_NAMES.has(formatName)) return false;
+
+    return hasValidScannedCheckDigit(code, formatName);
+}
+
+function getSupportedScannerFormats() {
+    return [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E
+    ];
 }
 
 function getScannerQrbox(viewfinderWidth, viewfinderHeight) {
@@ -186,6 +257,44 @@ async function widenScannerCameraView(html5QrCode) {
         });
     } catch (err) {
         console.warn("Could not widen camera view", err);
+    }
+}
+
+async function optimizeScannerCamera(html5QrCode) {
+    await widenScannerCameraView(html5QrCode);
+
+    const track = getScannerVideoTrack();
+    if (!track || typeof track.getCapabilities !== 'function' || typeof track.applyConstraints !== 'function') {
+        return;
+    }
+
+    try {
+        const capabilities = track.getCapabilities();
+        const constraints = {};
+        const continuousModes = {};
+
+        if (capabilities.width && typeof capabilities.width.max === 'number') {
+            constraints.width = { ideal: Math.min(1920, capabilities.width.max) };
+        }
+        if (capabilities.height && typeof capabilities.height.max === 'number') {
+            constraints.height = { ideal: Math.min(1080, capabilities.height.max) };
+        }
+
+        ['focusMode', 'exposureMode', 'whiteBalanceMode'].forEach((name) => {
+            if (Array.isArray(capabilities[name]) && capabilities[name].includes('continuous')) {
+                continuousModes[name] = 'continuous';
+            }
+        });
+
+        if (Object.keys(continuousModes).length > 0) {
+            constraints.advanced = [continuousModes];
+        }
+
+        if (Object.keys(constraints).length > 0) {
+            await track.applyConstraints(constraints);
+        }
+    } catch (err) {
+        console.warn("Could not optimize camera focus", err);
     }
 }
 
@@ -1147,21 +1256,27 @@ function setScannerStatus(message, level = 'info') {
     status.dataset.level = level;
 }
 
-function confirmScanCandidate(scanState, decodedText) {
+function confirmScanCandidate(scanState, decodedText, decodedResult, now = Date.now()) {
     const scannedCode = normalizeScannedCode(decodedText);
 
-    if (!isValidScannedBarcodeCandidate(scannedCode)) {
+    if (!isValidScannedBarcodeCandidate(scannedCode, decodedResult)) {
         scanState.code = '';
         scanState.count = 0;
-        setScannerStatus('読み取り値を確認できません。もう一度かざしてください。', 'warn');
+        scanState.lastSeenAt = 0;
+        setScannerStatus('番号を確認できません。バーコードを1つだけ中央に入れてください。', 'warn');
         return '';
     }
 
-    if (scanState.code === scannedCode) {
-        scanState.count += 1;
-    } else {
+    const isSameFreshCandidate = scanState.code === scannedCode
+        && now - scanState.lastSeenAt <= SCAN_CONFIRM_MAX_GAP_MS;
+
+    if (!isSameFreshCandidate) {
         scanState.code = scannedCode;
         scanState.count = 1;
+        scanState.lastSeenAt = now;
+    } else if (now - scanState.lastSeenAt >= SCAN_CONFIRM_MIN_INTERVAL_MS) {
+        scanState.count += 1;
+        scanState.lastSeenAt = now;
     }
 
     if (scanState.count < SCAN_CONFIRM_REQUIRED) {
@@ -1361,32 +1476,30 @@ async function startScanner(targetInputId) {
 }
 
 function initScanner(targetInputId) {
-    const html5QrCode = new Html5Qrcode("reader");
-    html5QrcodeScanner = html5QrCode;
-    let scanCompleted = false;
-    const scanState = { code: '', count: 0 };
-    setScannerStatus('広めの読み取り範囲に、バーコード全体を入れてください');
-
-    const config = {
-        fps: 15,
-        qrbox: getScannerQrbox,
-        aspectRatio: getScannerAspectRatio(),
+    const html5QrCode = new Html5Qrcode("reader", {
+        formatsToSupport: getSupportedScannerFormats(),
         useBarCodeDetectorIfSupported: true,
         experimentalFeatures: {
             useBarCodeDetectorIfSupported: true
         },
-        formatsToSupport: [
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E
-        ]
+        verbose: false
+    });
+    html5QrcodeScanner = html5QrCode;
+    let scanCompleted = false;
+    const scanState = { code: '', count: 0, lastSeenAt: 0 };
+    setScannerStatus('バーコードを1つだけ中央に入れてください。同じ番号を3回確認します。');
+
+    const config = {
+        fps: 12,
+        qrbox: getScannerQrbox,
+        aspectRatio: getScannerAspectRatio(),
+        disableFlip: true
     };
 
     html5QrCode.start(getScannerCameraConfig(), config, (decodedText, decodedResult) => {
         if (scanCompleted) return;
         console.log(`Code matched = ${decodedText}`, decodedResult);
-        const scannedCode = confirmScanCandidate(scanState, decodedText);
+        const scannedCode = confirmScanCandidate(scanState, decodedText, decodedResult);
         if (!scannedCode) return;
 
         const input = document.getElementById(targetInputId);
@@ -1410,7 +1523,7 @@ function initScanner(targetInputId) {
         // parse error, ignore it.
     })
         .then(() => {
-            widenScannerCameraView(html5QrCode);
+            optimizeScannerCamera(html5QrCode);
             setTimeout(() => setupScannerTorchControl(html5QrCode), 500);
         })
         .catch(err => {
