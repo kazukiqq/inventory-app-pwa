@@ -5,11 +5,15 @@ let products = [];
 let categories = [];
 let html5QrcodeScanner = null;
 let scannerStopPromise = null;
-const APP_VERSION = '1.2.40';
+const APP_VERSION = '1.2.41';
 const SCAN_CONFIRM_REQUIRED = 3;
-const SCAN_CONFIRM_MIN_INTERVAL_MS = 100;
 const SCAN_CONFIRM_MAX_GAP_MS = 1500;
-const SUPPORTED_SCANNER_FORMAT_NAMES = new Set(['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E']);
+const GTIN_SCANNER_FORMAT_NAMES = new Set(['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E']);
+const FLEXIBLE_SCANNER_FORMAT_NAMES = new Set(['CODE_128', 'CODE_39', 'ITF', 'CODABAR']);
+const SUPPORTED_SCANNER_FORMAT_NAMES = new Set([
+    ...GTIN_SCANNER_FORMAT_NAMES,
+    ...FLEXIBLE_SCANNER_FORMAT_NAMES
+]);
 const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyEN-GRJaa9qKRnFsryZ9Gcd__cZlc1E9h884sKRZc_f_9HaXilz1YijY0C0ln0J0zwPQ/exec';
 
 
@@ -209,12 +213,24 @@ function hasValidScannedCheckDigit(code, formatName) {
 }
 
 function isValidScannedBarcodeCandidate(code, decodedResult) {
-    if (!/^\d+$/.test(code) || ![8, 12, 13].includes(code.length)) return false;
+    if (!code) return false;
 
     const formatName = getDecodedFormatName(decodedResult);
     if (formatName && !SUPPORTED_SCANNER_FORMAT_NAMES.has(formatName)) return false;
 
-    return hasValidScannedCheckDigit(code, formatName);
+    if (!formatName || GTIN_SCANNER_FORMAT_NAMES.has(formatName)) {
+        const validGtin = /^\d+$/.test(code)
+            && [8, 12, 13].includes(code.length)
+            && hasValidScannedCheckDigit(code, formatName);
+        if (validGtin || formatName) return validGtin;
+    }
+
+    // CODE-128, CODE-39, ITF and Codabar are frequently used for internal
+    // inventory labels and do not always carry a GTIN check digit.
+    if (!/^[0-9A-Z]{4,64}$/.test(code)) return false;
+    if (formatName === 'ITF' && (!/^\d+$/.test(code) || code.length % 2 !== 0)) return false;
+
+    return true;
 }
 
 function getSupportedScannerFormats() {
@@ -222,7 +238,11 @@ function getSupportedScannerFormats() {
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
         Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.CODABAR
     ];
 }
 
@@ -270,15 +290,7 @@ async function optimizeScannerCamera(html5QrCode) {
 
     try {
         const capabilities = track.getCapabilities();
-        const constraints = {};
         const continuousModes = {};
-
-        if (capabilities.width && typeof capabilities.width.max === 'number') {
-            constraints.width = { ideal: Math.min(1920, capabilities.width.max) };
-        }
-        if (capabilities.height && typeof capabilities.height.max === 'number') {
-            constraints.height = { ideal: Math.min(1080, capabilities.height.max) };
-        }
 
         ['focusMode', 'exposureMode', 'whiteBalanceMode'].forEach((name) => {
             if (Array.isArray(capabilities[name]) && capabilities[name].includes('continuous')) {
@@ -287,11 +299,7 @@ async function optimizeScannerCamera(html5QrCode) {
         });
 
         if (Object.keys(continuousModes).length > 0) {
-            constraints.advanced = [continuousModes];
-        }
-
-        if (Object.keys(constraints).length > 0) {
-            await track.applyConstraints(constraints);
+            await track.applyConstraints({ advanced: [continuousModes] });
         }
     } catch (err) {
         console.warn("Could not optimize camera focus", err);
@@ -1274,7 +1282,7 @@ function confirmScanCandidate(scanState, decodedText, decodedResult, now = Date.
         scanState.code = scannedCode;
         scanState.count = 1;
         scanState.lastSeenAt = now;
-    } else if (now - scanState.lastSeenAt >= SCAN_CONFIRM_MIN_INTERVAL_MS) {
+    } else {
         scanState.count += 1;
         scanState.lastSeenAt = now;
     }
@@ -1490,10 +1498,9 @@ function initScanner(targetInputId) {
     setScannerStatus('バーコードを1つだけ中央に入れてください。同じ番号を3回確認します。');
 
     const config = {
-        fps: 12,
+        fps: 15,
         qrbox: getScannerQrbox,
-        aspectRatio: getScannerAspectRatio(),
-        disableFlip: true
+        aspectRatio: getScannerAspectRatio()
     };
 
     html5QrCode.start(getScannerCameraConfig(), config, (decodedText, decodedResult) => {

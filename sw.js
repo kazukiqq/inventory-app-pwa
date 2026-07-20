@@ -1,9 +1,9 @@
-const CACHE_NAME = 'inventory-app-v40';
+const CACHE_NAME = 'inventory-app-v41';
 const ASSETS = [
     '/',
     '/index.html',
-    '/style.css?v=1.2.40',
-    '/app.js?v=1.2.40',
+    '/style.css?v=1.2.41',
+    '/app.js?v=1.2.41',
     '/manifest.json',
     'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
     'https://cdn-icons-png.flaticon.com/512/1043/1043445.png'
